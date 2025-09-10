@@ -54,7 +54,10 @@ router.get('/tipos-permisos', verificarTokenEmpleado, async (req, res) => {
             ['T', 'AM', 'PM', 'S', 'C'].includes(tipo.codigo)
         );
         
-        res.json(tiposEmpleado);
+        res.json({
+            success: true,
+            data: tiposEmpleado
+        });
     } catch (error) {
         console.error('Error obteniendo tipos de permisos:', error);
         res.status(500).json({ error: 'Error interno del servidor' });
