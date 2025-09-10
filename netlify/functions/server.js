@@ -391,6 +391,91 @@ app.get('/api/solicitudes-empleado/tipos-permisos', verifyToken, async (req, res
     }
 });
 
+// Endpoint para crear solicitudes de permiso
+app.post('/api/solicitudes-empleado/crear', verifyToken, async (req, res) => {
+    try {
+        if (req.user.type !== 'empleado') {
+            return res.status(403).json({ error: 'Acceso denegado' });
+        }
+
+        if (!supabase) {
+            return res.status(500).json({ error: 'Base de datos no configurada' });
+        }
+
+        const { tipo_permiso_id, fecha_inicio, fecha_fin, motivo, observaciones } = req.body;
+        
+        if (!tipo_permiso_id || !fecha_inicio || !motivo) {
+            return res.status(400).json({ error: 'Tipo de permiso, fecha de inicio y motivo son requeridos' });
+        }
+
+        // Validar que la fecha sea futura
+        const fechaPermiso = new Date(fecha_inicio);
+        const hoy = new Date();
+        hoy.setHours(0, 0, 0, 0);
+        
+        if (fechaPermiso < hoy) {
+            return res.status(400).json({ error: 'La fecha del permiso debe ser futura' });
+        }
+
+        // Validar que tipo_permiso_id sea un número válido
+        const tipoPermisoIdNum = parseInt(tipo_permiso_id);
+        if (isNaN(tipoPermisoIdNum)) {
+            return res.status(400).json({ error: 'ID de tipo de permiso inválido' });
+        }
+
+        // Verificar que el tipo de permiso existe
+        const { data: tipoPermisoData, error: tipoError } = await supabase
+            .from('tipos_permisos')
+            .select('*')
+            .eq('id', tipoPermisoIdNum)
+            .eq('activo', true)
+            .single();
+        
+        if (tipoError || !tipoPermisoData) {
+            return res.status(400).json({ error: 'Tipo de permiso no encontrado' });
+        }
+
+        // Crear solicitud
+        const { data: solicitud, error: createError } = await supabase
+            .from('solicitudes_permisos')
+            .insert({
+                empleado_id: req.user.id,
+                tipo_permiso_id: tipoPermisoIdNum,
+                fecha_desde: fecha_inicio,
+                fecha_hasta: fecha_fin || fecha_inicio,
+                motivo: motivo,
+                observaciones: observaciones || null,
+                estado: 'PENDIENTE',
+                created_at: new Date().toISOString()
+            })
+            .select()
+            .single();
+
+        if (createError) {
+            console.error('Error creando solicitud:', createError);
+            return res.status(500).json({ error: 'Error creando solicitud' });
+        }
+
+        res.status(201).json({
+            success: true,
+            message: 'Solicitud creada exitosamente. Se ha notificado al supervisor.',
+            data: {
+                id: solicitud.id,
+                tipo_permiso_id: tipoPermisoIdNum,
+                tipo_permiso_nombre: tipoPermisoData.nombre,
+                fecha_inicio,
+                fecha_fin: fecha_fin || fecha_inicio,
+                motivo,
+                estado: 'PENDIENTE'
+            }
+        });
+
+    } catch (error) {
+        console.error('Error creando solicitud:', error);
+        res.status(500).json({ error: 'Error interno del servidor' });
+    }
+});
+
 // Manejo de errores 404
 app.use('*', (req, res) => {
     res.status(404).json({ 
