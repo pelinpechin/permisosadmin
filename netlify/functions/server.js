@@ -40,6 +40,29 @@ function normalizarRUT(rut) {
     return rut.replace(/\./g, '').replace(/-/g, '');
 }
 
+// Middleware para verificar token JWT
+function verifyToken(req, res, next) {
+    const token = req.headers['authorization']?.split(' ')[1];
+    
+    if (!token) {
+        return res.status(401).json({
+            success: false,
+            message: 'Token de acceso requerido'
+        });
+    }
+    
+    jwt.verify(token, JWT_SECRET, (err, decoded) => {
+        if (err) {
+            return res.status(401).json({
+                success: false,
+                message: 'Token inválido'
+            });
+        }
+        req.user = decoded;
+        next();
+    });
+}
+
 // Ruta de health check
 app.get('/api/health', (req, res) => {
     res.json({ 
@@ -240,6 +263,116 @@ app.post('/api/empleados-auth/solicitar-reset', async (req, res) => {
         
     } catch (error) {
         console.error('Error en solicitar-reset:', error);
+        res.status(500).json({ error: 'Error interno del servidor' });
+    }
+});
+
+// Endpoint para dashboard del empleado
+app.get('/api/solicitudes-empleado/dashboard', verifyToken, async (req, res) => {
+    try {
+        if (req.user.type !== 'empleado') {
+            return res.status(403).json({ error: 'Acceso denegado' });
+        }
+
+        if (!supabase) {
+            return res.status(500).json({ error: 'Base de datos no configurada' });
+        }
+
+        const empleadoId = req.user.id;
+
+        // Obtener información del empleado
+        const { data: empleado, error: empleadoError } = await supabase
+            .from('empleados')
+            .select('*')
+            .eq('id', empleadoId)
+            .eq('activo', true)
+            .single();
+
+        if (empleadoError || !empleado) {
+            return res.status(404).json({ error: 'Empleado no encontrado' });
+        }
+
+        // Estadísticas básicas simuladas
+        const estadisticas = {
+            total_solicitudes: 0,
+            pendientes: 0,
+            aprobadas: 0,
+            rechazadas: 0
+        };
+
+        res.json({
+            success: true,
+            data: {
+                empleado: {
+                    nombre: empleado.nombre,
+                    rut: empleado.rut,
+                    cargo: empleado.cargo,
+                    email: empleado.email
+                },
+                estadisticas,
+                permisos_utilizados: {
+                    primer_semestre: empleado.uso_primer_semestre || 0,
+                    segundo_semestre: empleado.uso_segundo_semestre || 0,
+                    sin_goce: empleado.sin_goce || 0,
+                    licencias: empleado.licencias_total || 0
+                }
+            }
+        });
+
+    } catch (error) {
+        console.error('Error en dashboard:', error);
+        res.status(500).json({ error: 'Error interno del servidor' });
+    }
+});
+
+// Endpoint para historial de solicitudes
+app.get('/api/solicitudes-empleado/historial', verifyToken, async (req, res) => {
+    try {
+        if (req.user.type !== 'empleado') {
+            return res.status(403).json({ error: 'Acceso denegado' });
+        }
+
+        if (!supabase) {
+            return res.status(500).json({ error: 'Base de datos no configurada' });
+        }
+
+        // Por ahora devolver historial vacío
+        res.json({
+            success: true,
+            data: []
+        });
+
+    } catch (error) {
+        console.error('Error en historial:', error);
+        res.status(500).json({ error: 'Error interno del servidor' });
+    }
+});
+
+// Endpoint para tipos de permisos
+app.get('/api/solicitudes-empleado/tipos-permisos', verifyToken, async (req, res) => {
+    try {
+        if (!supabase) {
+            return res.status(500).json({ error: 'Base de datos no configurada' });
+        }
+
+        const { data: tipos, error } = await supabase
+            .from('tipos_permisos')
+            .select('*')
+            .eq('activo', true)
+            .order('codigo');
+
+        if (error) {
+            console.error('Error consultando tipos de permisos:', error);
+            return res.status(500).json({ error: 'Error consultando tipos de permisos' });
+        }
+
+        res.json({
+            success: true,
+            data: tipos || []
+        });
+
+    } catch (error) {
+        console.error('Error en tipos-permisos:', error);
         res.status(500).json({ error: 'Error interno del servidor' });
     }
 });
