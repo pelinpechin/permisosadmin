@@ -1270,8 +1270,8 @@
                 motivo: document.getElementById('motivo').value
             };
             
-            if (!formData.tipo_permiso_id || !formData.fecha_inicio || !formData.fecha_fin || !formData.motivo) {
-                mostrarToast('error', 'Todos los campos son requeridos');
+            if (!formData.tipo_permiso_id || !formData.fecha_inicio || !formData.motivo) {
+                mostrarToast('error', 'Tipo de permiso, fecha de inicio y motivo son requeridos');
                 return;
             }
             

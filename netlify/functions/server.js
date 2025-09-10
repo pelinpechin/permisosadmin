@@ -394,17 +394,26 @@ app.get('/api/solicitudes-empleado/tipos-permisos', verifyToken, async (req, res
 // Endpoint para crear solicitudes de permiso
 app.post('/api/solicitudes-empleado/crear', verifyToken, async (req, res) => {
     try {
+        console.log('🎯 === CREAR SOLICITUD ===');
+        console.log('🎯 Usuario:', req.user);
+        console.log('🎯 Body:', req.body);
+        
         if (req.user.type !== 'empleado') {
+            console.log('❌ Acceso denegado - tipo usuario:', req.user.type);
             return res.status(403).json({ error: 'Acceso denegado' });
         }
 
         if (!supabase) {
+            console.log('❌ Supabase no configurado');
             return res.status(500).json({ error: 'Base de datos no configurada' });
         }
 
         const { tipo_permiso_id, fecha_inicio, fecha_fin, motivo, observaciones } = req.body;
         
+        console.log('📝 Datos recibidos:', { tipo_permiso_id, fecha_inicio, fecha_fin, motivo, observaciones });
+        
         if (!tipo_permiso_id || !fecha_inicio || !motivo) {
+            console.log('❌ Validación fallida - campos requeridos');
             return res.status(400).json({ error: 'Tipo de permiso, fecha de inicio y motivo son requeridos' });
         }
 
@@ -413,15 +422,21 @@ app.post('/api/solicitudes-empleado/crear', verifyToken, async (req, res) => {
         const hoy = new Date();
         hoy.setHours(0, 0, 0, 0);
         
+        console.log('📅 Validando fecha:', { fechaPermiso, hoy });
+        
         if (fechaPermiso < hoy) {
+            console.log('❌ Fecha inválida - debe ser futura');
             return res.status(400).json({ error: 'La fecha del permiso debe ser futura' });
         }
 
         // Validar que tipo_permiso_id sea un número válido
         const tipoPermisoIdNum = parseInt(tipo_permiso_id);
         if (isNaN(tipoPermisoIdNum)) {
+            console.log('❌ ID tipo permiso inválido:', tipo_permiso_id);
             return res.status(400).json({ error: 'ID de tipo de permiso inválido' });
         }
+
+        console.log('🔍 Consultando tipo de permiso:', tipoPermisoIdNum);
 
         // Verificar que el tipo de permiso existe
         const { data: tipoPermisoData, error: tipoError } = await supabase
@@ -431,30 +446,48 @@ app.post('/api/solicitudes-empleado/crear', verifyToken, async (req, res) => {
             .eq('activo', true)
             .single();
         
-        if (tipoError || !tipoPermisoData) {
+        if (tipoError) {
+            console.error('❌ Error consultando tipo permiso:', tipoError);
+            return res.status(400).json({ error: 'Error consultando tipo de permiso: ' + tipoError.message });
+        }
+        
+        if (!tipoPermisoData) {
+            console.log('❌ Tipo de permiso no encontrado');
             return res.status(400).json({ error: 'Tipo de permiso no encontrado' });
         }
+
+        console.log('✅ Tipo de permiso encontrado:', tipoPermisoData);
+
+        // Preparar datos para inserción
+        const solicitudData = {
+            empleado_id: req.user.id,
+            tipo_permiso_id: tipoPermisoIdNum,
+            fecha_desde: fecha_inicio,
+            fecha_hasta: fecha_fin || fecha_inicio,
+            motivo: motivo,
+            observaciones: observaciones || null,
+            estado: 'PENDIENTE',
+            created_at: new Date().toISOString()
+        };
+
+        console.log('📝 Datos para inserción:', solicitudData);
 
         // Crear solicitud
         const { data: solicitud, error: createError } = await supabase
             .from('solicitudes_permisos')
-            .insert({
-                empleado_id: req.user.id,
-                tipo_permiso_id: tipoPermisoIdNum,
-                fecha_desde: fecha_inicio,
-                fecha_hasta: fecha_fin || fecha_inicio,
-                motivo: motivo,
-                observaciones: observaciones || null,
-                estado: 'PENDIENTE',
-                created_at: new Date().toISOString()
-            })
+            .insert(solicitudData)
             .select()
             .single();
 
         if (createError) {
-            console.error('Error creando solicitud:', createError);
-            return res.status(500).json({ error: 'Error creando solicitud' });
+            console.error('❌ Error creando solicitud:', createError);
+            return res.status(500).json({ 
+                error: 'Error creando solicitud: ' + createError.message,
+                details: createError
+            });
         }
+
+        console.log('✅ Solicitud creada exitosamente:', solicitud);
 
         res.status(201).json({
             success: true,
@@ -471,8 +504,11 @@ app.post('/api/solicitudes-empleado/crear', verifyToken, async (req, res) => {
         });
 
     } catch (error) {
-        console.error('Error creando solicitud:', error);
-        res.status(500).json({ error: 'Error interno del servidor' });
+        console.error('💥 Error general creando solicitud:', error);
+        res.status(500).json({ 
+            error: 'Error interno del servidor: ' + error.message,
+            stack: error.stack
+        });
     }
 });
 
