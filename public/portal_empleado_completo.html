@@ -933,10 +933,10 @@
                 
                 const data = await response.json();
                 
-                if (response.ok) {
-                    empleadoInfo = data.empleado;
-                    actualizarBalancePermisos(empleadoInfo);
-                    mostrarDatosPersonales(empleadoInfo);
+                if (response.ok && data.success) {
+                    empleadoInfo = data.data.empleado;
+                    actualizarBalancePermisos(data.data.empleado, data.data.permisos_utilizados);
+                    mostrarDatosPersonales(data.data.empleado);
                     return data;
                 } else {
                     throw new Error(data.error || 'Error al cargar dashboard');
@@ -992,8 +992,8 @@
                 
                 const data = await response.json();
                 
-                if (response.ok) {
-                    tiposPermisosData = data || [];
+                if (response.ok && data.success) {
+                    tiposPermisosData = data.data || [];
                     const select = document.getElementById('tipoPermiso');
                     select.innerHTML = '<option value="">Selecciona un tipo...</option>';
                     
@@ -1163,12 +1163,12 @@
             document.getElementById('totalRechazados').textContent = rechazados;
         }
         
-        function actualizarBalancePermisos(empleado) {
+        function actualizarBalancePermisos(empleado, permisosUtilizados) {
             if (!empleado) return;
             
             const tieneNegociacionColectiva = empleado.negociacion_colectiva === 1;
-            const uso1Semestre = empleado.uso_primer_semestre || 0;
-            const uso2Semestre = empleado.uso_segundo_semestre || 0;
+            const uso1Semestre = (permisosUtilizados && permisosUtilizados.primer_semestre) || empleado.uso_primer_semestre || 0;
+            const uso2Semestre = (permisosUtilizados && permisosUtilizados.segundo_semestre) || empleado.uso_segundo_semestre || 0;
             const usoTotal = uso1Semestre + uso2Semestre;
             
             let html = `
