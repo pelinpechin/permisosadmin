@@ -307,7 +307,10 @@ app.get('/api/solicitudes-empleado/dashboard', verifyToken, async (req, res) => 
                     nombre: empleado.nombre,
                     rut: empleado.rut,
                     cargo: empleado.cargo,
-                    email: empleado.email
+                    email: empleado.email,
+                    supervisor: empleado.supervisor || empleado.visualizacion || 'No asignado',
+                    fecha_ingreso: empleado.fecha_ingreso,
+                    horas_semanales: empleado.horas_semanales
                 },
                 estadisticas,
                 permisos_utilizados: {
