@@ -1,0 +1,742 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard Empleado - Sistema de Permisos</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        body {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+        .dashboard-container {
+            background: rgba(255,255,255,0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            margin: 20px;
+            padding: 30px;
+            box-shadow: 0 15px 35px rgba(0,0,0,0.3);
+        }
+        .header-card {
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            color: white;
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 30px;
+        }
+        .permiso-card {
+            border-radius: 12px;
+            margin-bottom: 20px;
+            border: none;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        }
+        .status-pendiente { border-left: 5px solid #ffc107; }
+        .status-aprobado { border-left: 5px solid #28a745; }
+        .status-rechazado { border-left: 5px solid #dc3545; }
+        .btn-primary {
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            border: none;
+            border-radius: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container-fluid">
+        <div class="dashboard-container">
+            <div class="header-card">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h2><i class="fas fa-user me-2"></i><span id="nombreEmpleado">Cargando...</span></h2>
+                        <p class="mb-0">Dashboard de Empleado - Sistema de Permisos</p>
+                    </div>
+                    <div>
+                        <button class="btn btn-light me-2" onclick="window.location.reload()">
+                            <i class="fas fa-sync-alt"></i> Actualizar
+                        </button>
+                        <button class="btn btn-outline-light" onclick="cerrarSesion()">
+                            <i class="fas fa-sign-out-alt"></i> Cerrar Sesión
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="row">
+                <div class="col-md-8">
+                    <div class="card">
+                        <div class="card-header d-flex justify-content-between align-items-center">
+                            <h5><i class="fas fa-list me-2"></i>Mis Solicitudes de Permisos</h5>
+                            <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#nuevoPermisoModal">
+                                <i class="fas fa-plus"></i> Nueva Solicitud
+                            </button>
+                        </div>
+                        <div class="card-body" id="listaPermisos">
+                            <div class="text-center p-4">
+                                <div class="spinner-border text-primary" role="status">
+                                    <span class="visually-hidden">Cargando...</span>
+                                </div>
+                                <p class="mt-2">Cargando tus permisos...</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-md-4">
+                    <!-- Sección de datos personales -->
+                    <div class="card mb-3">
+                        <div class="card-header d-flex justify-content-between align-items-center">
+                            <h5><i class="fas fa-user-edit me-2"></i>Mis Datos</h5>
+                            <button class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#editarDatosModal">
+                                <i class="fas fa-edit"></i>
+                            </button>
+                        </div>
+                        <div class="card-body" id="datosPersonales">
+                            <div class="mb-2">
+                                <strong>RUT:</strong> <span id="datosRut">-</span>
+                            </div>
+                            <div class="mb-2">
+                                <strong>Email:</strong> <span id="datosEmail">-</span>
+                            </div>
+                            <div class="mb-2">
+                                <strong>Cargo:</strong> <span id="datosCargo">-</span>
+                            </div>
+                            <div class="mb-2">
+                                <strong>Supervisor:</strong> <span id="datosSupervisor">-</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="card mb-3">
+                        <div class="card-header">
+                            <h5><i class="fas fa-chart-pie me-2"></i>Resumen</h5>
+                        </div>
+                        <div class="card-body" id="resumen">
+                            <div class="row text-center">
+                                <div class="col-4">
+                                    <div class="p-2">
+                                        <i class="fas fa-clock text-warning" style="font-size: 2rem;"></i>
+                                        <h4 class="mt-2" id="totalPendientes">0</h4>
+                                        <small>Pendientes</small>
+                                    </div>
+                                </div>
+                                <div class="col-4">
+                                    <div class="p-2">
+                                        <i class="fas fa-check-circle text-success" style="font-size: 2rem;"></i>
+                                        <h4 class="mt-2" id="totalAprobados">0</h4>
+                                        <small>Aprobados</small>
+                                    </div>
+                                </div>
+                                <div class="col-4">
+                                    <div class="p-2">
+                                        <i class="fas fa-times-circle text-danger" style="font-size: 2rem;"></i>
+                                        <h4 class="mt-2" id="totalRechazados">0</h4>
+                                        <small>Rechazados</small>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Nueva sección de balance de permisos -->
+                    <div class="card">
+                        <div class="card-header">
+                            <h5><i class="fas fa-balance-scale me-2"></i>Balance de Permisos</h5>
+                        </div>
+                        <div class="card-body" id="balancePermisos">
+                            <div class="text-center p-3">
+                                <div class="spinner-border text-primary" role="status">
+                                    <span class="visually-hidden">Cargando balance...</span>
+                                </div>
+                                <p class="mt-2">Cargando balance...</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Nuevo Permiso -->
+    <div class="modal fade" id="nuevoPermisoModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="fas fa-plus me-2"></i>Nueva Solicitud de Permiso</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <form id="formNuevoPermiso" onsubmit="crearPermiso(event)">
+                    <div class="modal-body">
+                        <!-- Alert para mostrar validación de límites -->
+                        <div id="alertaLimites" class="alert d-none" role="alert">
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="tipoPermiso" class="form-label">Tipo de Permiso</label>
+                            <select class="form-select" id="tipoPermiso" required onchange="validarLimites()">
+                                <option value="">Selecciona un tipo...</option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label for="fechaInicio" class="form-label">Fecha de Inicio</label>
+                            <input type="date" class="form-control" id="fechaInicio" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="fechaFin" class="form-label">Fecha de Fin</label>
+                            <input type="date" class="form-control" id="fechaFin" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="motivo" class="form-label">Motivo</label>
+                            <textarea class="form-control" id="motivo" rows="3" required placeholder="Describe el motivo de tu solicitud..."></textarea>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-paper-plane me-2"></i>Enviar Solicitud
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Editar Datos -->
+    <div class="modal fade" id="editarDatosModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="fas fa-user-edit me-2"></i>Editar Mis Datos</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <form id="formEditarDatos" onsubmit="actualizarDatos(event)">
+                    <div class="modal-body">
+                        <div class="mb-3">
+                            <label for="editRut" class="form-label">RUT</label>
+                            <input type="text" class="form-control" id="editRut" required placeholder="12.345.678-9">
+                        </div>
+                        <div class="mb-3">
+                            <label for="editEmail" class="form-label">Email</label>
+                            <input type="email" class="form-control" id="editEmail" required placeholder="usuario@ejemplo.com">
+                        </div>
+                        <div class="mb-3">
+                            <label for="editCargo" class="form-label">Cargo</label>
+                            <input type="text" class="form-control" id="editCargo" required placeholder="Tu cargo actual">
+                        </div>
+                        <div class="alert alert-info">
+                            <i class="fas fa-info-circle me-2"></i>
+                            <strong>Nota:</strong> El supervisor solo puede ser modificado por un administrador.
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-save me-2"></i>Guardar Cambios
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        const token = localStorage.getItem('auth_token');
+        const userData = JSON.parse(localStorage.getItem('user_data') || '{}');
+
+        if (!token) {
+            window.location.href = '/login_simple.html';
+        }
+
+        document.getElementById('nombreEmpleado').textContent = userData.nombre || 'Usuario';
+
+        async function cargarPermisos() {
+            try {
+                const response = await fetch('/api/solicitudes-empleado/historial', {
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    mostrarPermisos(data.data || []);
+                    actualizarResumen(data.data || []);
+                } else {
+                    throw new Error(data.message || 'Error al cargar permisos');
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                document.getElementById('listaPermisos').innerHTML = `
+                    <div class="alert alert-danger">
+                        <i class="fas fa-exclamation-triangle me-2"></i>
+                        Error al cargar los permisos: ${error.message}
+                    </div>
+                `;
+            }
+        }
+
+        function mostrarPermisos(permisos) {
+            const container = document.getElementById('listaPermisos');
+            
+            if (permisos.length === 0) {
+                container.innerHTML = `
+                    <div class="text-center p-4 text-muted">
+                        <i class="fas fa-inbox" style="font-size: 3rem; opacity: 0.5;"></i>
+                        <p class="mt-3">No tienes solicitudes de permisos aún</p>
+                        <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#nuevoPermisoModal">
+                            <i class="fas fa-plus me-2"></i>Crear primera solicitud
+                        </button>
+                    </div>
+                `;
+                return;
+            }
+
+            const html = permisos.map(permiso => {
+                const estado = permiso.estado || 'PENDIENTE';
+                const statusClass = `status-${estado.toLowerCase()}`;
+                const statusIcon = {
+                    'PENDIENTE': 'clock text-warning',
+                    'APROBADO': 'check-circle text-success',
+                    'RECHAZADO': 'times-circle text-danger'
+                };
+
+                return `
+                    <div class="card permiso-card ${statusClass}">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between align-items-start">
+                                <div>
+                                    <h6 class="card-title mb-2">
+                                        <i class="fas fa-calendar-alt me-2"></i>
+                                        ${permiso.tipo_permiso_nombre || 'Tipo no definido'}
+                                    </h6>
+                                    <p class="card-text text-muted mb-2">
+                                        <strong>Período:</strong> ${permiso.fecha_inicio} al ${permiso.fecha_fin}
+                                    </p>
+                                    <p class="card-text mb-2">${permiso.motivo}</p>
+                                    ${permiso.observaciones ? `<p class="card-text"><small class="text-muted"><strong>Observaciones:</strong> ${permiso.observaciones}</small></p>` : ''}
+                                </div>
+                                <div class="text-end">
+                                    <span class="badge bg-${estado === 'APROBADO' ? 'success' : estado === 'RECHAZADO' ? 'danger' : 'warning'}">
+                                        <i class="fas fa-${statusIcon[estado]}"></i> ${estado}
+                                    </span>
+                                    <br>
+                                    <small class="text-muted">${new Date(permiso.created_at).toLocaleDateString()}</small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+
+            container.innerHTML = html;
+        }
+
+        function actualizarResumen(permisos) {
+            const pendientes = permisos.filter(p => p.estado === 'PENDIENTE').length;
+            const aprobados = permisos.filter(p => p.estado === 'APROBADO').length;
+            const rechazados = permisos.filter(p => p.estado === 'RECHAZADO').length;
+
+            document.getElementById('totalPendientes').textContent = pendientes;
+            document.getElementById('totalAprobados').textContent = aprobados;
+            document.getElementById('totalRechazados').textContent = rechazados;
+        }
+
+        async function cargarTiposPermisos() {
+            try {
+                const response = await fetch('/api/solicitudes-empleado/tipos-permisos', {
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    tiposPermisosData = data || []; // Guardar datos globalmente
+                    const select = document.getElementById('tipoPermiso');
+                    select.innerHTML = '<option value="">Selecciona un tipo...</option>';
+                    
+                    tiposPermisosData.forEach(tipo => {
+                        select.innerHTML += `<option value="${tipo.id}">${tipo.nombre} (${tipo.codigo})</option>`;
+                    });
+                }
+            } catch (error) {
+                console.error('Error cargando tipos de permisos:', error);
+            }
+        }
+
+        async function crearPermiso(event) {
+            event.preventDefault();
+            
+            const formData = {
+                tipo_permiso_id: document.getElementById('tipoPermiso').value,
+                fecha_inicio: document.getElementById('fechaInicio').value,
+                fecha_fin: document.getElementById('fechaFin').value,
+                motivo: document.getElementById('motivo').value
+            };
+
+            try {
+                const response = await fetch('/api/solicitudes-empleado/crear', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify(formData)
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    bootstrap.Modal.getInstance(document.getElementById('nuevoPermisoModal')).hide();
+                    document.getElementById('formNuevoPermiso').reset();
+                    cargarPermisos(); // Recargar la lista
+                    
+                    const toast = document.createElement('div');
+                    toast.className = 'position-fixed top-0 end-0 p-3';
+                    toast.style.zIndex = '1050';
+                    toast.innerHTML = `
+                        <div class="toast show" role="alert">
+                            <div class="toast-header">
+                                <i class="fas fa-check-circle text-success me-2"></i>
+                                <strong class="me-auto">Éxito</strong>
+                                <button type="button" class="btn-close" data-bs-dismiss="toast"></button>
+                            </div>
+                            <div class="toast-body">
+                                Solicitud de permiso creada exitosamente
+                            </div>
+                        </div>
+                    `;
+                    document.body.appendChild(toast);
+                    setTimeout(() => toast.remove(), 5000);
+                    
+                } else {
+                    throw new Error(data.message || 'Error al crear la solicitud');
+                }
+            } catch (error) {
+                alert('Error: ' + error.message);
+            }
+        }
+
+        function cerrarSesion() {
+            localStorage.clear();
+            sessionStorage.clear();
+            window.location.href = '/login_simple.html';
+        }
+
+        // Variables globales para balance
+        let empleadoInfo = null;
+        let tiposPermisosData = [];
+
+        // Función para cargar y mostrar datos personales
+        function mostrarDatosPersonales(empleado) {
+            if (!empleado) return;
+            
+            document.getElementById('datosRut').textContent = empleado.rut || '-';
+            document.getElementById('datosEmail').textContent = empleado.email || '-';
+            document.getElementById('datosCargo').textContent = empleado.cargo || '-';
+            document.getElementById('datosSupervisor').textContent = empleado.supervisor || 'Sin asignar';
+        }
+
+        // Función para abrir modal con datos actuales
+        function abrirModalEditar() {
+            if (empleadoInfo) {
+                document.getElementById('editRut').value = empleadoInfo.rut || '';
+                document.getElementById('editEmail').value = empleadoInfo.email || '';
+                document.getElementById('editCargo').value = empleadoInfo.cargo || '';
+            }
+        }
+
+        // Función para actualizar datos del empleado
+        async function actualizarDatos(event) {
+            event.preventDefault();
+            
+            const formData = {
+                rut: document.getElementById('editRut').value,
+                email: document.getElementById('editEmail').value,
+                cargo: document.getElementById('editCargo').value
+            };
+
+            try {
+                const response = await fetch('/api/empleados-auth/actualizar-datos', {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify(formData)
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    // Cerrar modal
+                    bootstrap.Modal.getInstance(document.getElementById('editarDatosModal')).hide();
+                    
+                    // Actualizar datos en pantalla
+                    empleadoInfo = { ...empleadoInfo, ...formData };
+                    mostrarDatosPersonales(empleadoInfo);
+                    
+                    // Actualizar localStorage
+                    const currentUserData = JSON.parse(localStorage.getItem('user_data') || '{}');
+                    localStorage.setItem('user_data', JSON.stringify({
+                        ...currentUserData,
+                        ...formData
+                    }));
+                    
+                    // Mostrar toast de éxito
+                    mostrarToast('success', 'Datos actualizados correctamente');
+                    
+                } else {
+                    throw new Error(data.error || 'Error al actualizar los datos');
+                }
+            } catch (error) {
+                alert('Error: ' + error.message);
+            }
+        }
+
+        // Función para mostrar toast de notificación
+        function mostrarToast(tipo, mensaje) {
+            const toast = document.createElement('div');
+            toast.className = 'position-fixed top-0 end-0 p-3';
+            toast.style.zIndex = '1050';
+            toast.innerHTML = `
+                <div class="toast show" role="alert">
+                    <div class="toast-header">
+                        <i class="fas fa-${tipo === 'success' ? 'check-circle text-success' : 'exclamation-triangle text-danger'} me-2"></i>
+                        <strong class="me-auto">${tipo === 'success' ? 'Éxito' : 'Error'}</strong>
+                        <button type="button" class="btn-close" data-bs-dismiss="toast"></button>
+                    </div>
+                    <div class="toast-body">
+                        ${mensaje}
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(toast);
+            setTimeout(() => toast.remove(), 5000);
+        }
+
+        // Función para cargar información completa del empleado
+        async function cargarDashboard() {
+            try {
+                const response = await fetch('/api/solicitudes-empleado/dashboard', {
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    empleadoInfo = data.empleado;
+                    actualizarBalancePermisos(empleadoInfo);
+                    mostrarDatosPersonales(empleadoInfo);
+                    return data;
+                } else {
+                    throw new Error(data.error || 'Error al cargar dashboard');
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                document.getElementById('balancePermisos').innerHTML = `
+                    <div class="alert alert-danger">
+                        <i class="fas fa-exclamation-triangle me-2"></i>
+                        Error al cargar balance: ${error.message}
+                    </div>
+                `;
+                return null;
+            }
+        }
+
+        // Función para mostrar el balance de permisos
+        function actualizarBalancePermisos(empleado) {
+            if (!empleado) return;
+
+            const tieneNegociacionColectiva = empleado.negociacion_colectiva === 1;
+            const uso1Semestre = empleado.uso_primer_semestre || 0;
+            const uso2Semestre = empleado.uso_segundo_semestre || 0;
+            const usoTotal = uso1Semestre + uso2Semestre;
+
+            // Calcular límites y uso según negociación colectiva
+            let limites, usoActual, periodo;
+            
+            if (tieneNegociacionColectiva) {
+                // Límites anuales: 6.0 permisos totales al año (T=1.0, AM/PM=0.5)
+                limites = { maxTotal: 6.0 };
+                usoActual = { total: usoTotal };
+                periodo = 'anual';
+            } else {
+                // Límites semestrales: 3.0 permisos totales por semestre (T=1.0, AM/PM=0.5)
+                limites = { maxTotal: 3.0 };
+                usoActual = { 
+                    total1: uso1Semestre,
+                    total2: uso2Semestre
+                };
+                periodo = 'semestral';
+            }
+
+            // Generar HTML del balance
+            let html = `
+                <div class="mb-3">
+                    <h6><i class="fas fa-info-circle me-2"></i>Tu situación:</h6>
+                    <p class="mb-2"><strong>Negociación Colectiva:</strong> ${tieneNegociacionColectiva ? 'SÍ' : 'NO'}</p>
+                </div>
+            `;
+
+            if (tieneNegociacionColectiva) {
+                // Mostrar balance anual total
+                const disponible = Math.max(0, limites.maxTotal - usoActual.total);
+
+                html += `
+                    <div class="text-center mb-3">
+                        <div class="p-3 border rounded bg-light">
+                            <i class="fas fa-balance-scale text-info" style="font-size: 2rem;"></i>
+                            <h4 class="mt-2 ${disponible === 0 ? 'text-danger' : disponible <= 1 ? 'text-warning' : 'text-success'}">${disponible}</h4>
+                            <p class="mb-1"><strong>Permisos disponibles</strong></p>
+                            <small class="text-muted">de ${limites.maxTotal} anuales totales</small>
+                        </div>
+                    </div>
+                    <div class="text-center">
+                        <p class="mb-2"><strong>Uso actual:</strong> ${usoActual.total} permisos</p>
+                        <small class="text-info">
+                            Recuerda: T = 1 permiso, AM/PM = 0.5 permisos cada uno
+                        </small>
+                    </div>
+                `;
+            } else {
+                // Mostrar balance semestral
+                const disponible1 = Math.max(0, limites.maxTotal - usoActual.total1);
+                const disponible2 = Math.max(0, limites.maxTotal - usoActual.total2);
+
+                html += `
+                    <div class="mb-3">
+                        <h6>1° Semestre (Enero - Junio)</h6>
+                        <div class="text-center">
+                            <div class="p-2 border rounded bg-light">
+                                <h5 class="${disponible1 === 0 ? 'text-danger' : disponible1 <= 0.5 ? 'text-warning' : 'text-success'}">${disponible1}</h5>
+                                <small>Permisos disponibles</small>
+                                <br><small class="text-muted">Usados: ${usoActual.total1}</small>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <h6>2° Semestre (Julio - Diciembre)</h6>
+                        <div class="text-center">
+                            <div class="p-2 border rounded bg-light">
+                                <h5 class="${disponible2 === 0 ? 'text-danger' : disponible2 <= 0.5 ? 'text-warning' : 'text-success'}">${disponible2}</h5>
+                                <small>Permisos disponibles</small>
+                                <br><small class="text-muted">Usados: ${usoActual.total2}</small>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="text-center">
+                        <small class="text-muted">Límite: ${limites.maxTotal} permisos totales por semestre</small>
+                        <br><small class="text-info">T = 1 permiso, AM/PM = 0.5 permisos cada uno</small>
+                    </div>
+                `;
+            }
+
+            document.getElementById('balancePermisos').innerHTML = html;
+        }
+
+        // Función para validar límites antes de enviar
+        async function validarLimites() {
+            const tipoPermisoSelect = document.getElementById('tipoPermiso');
+            const fechaInicio = document.getElementById('fechaInicio').value;
+            const alertDiv = document.getElementById('alertaLimites');
+            
+            if (!tipoPermisoSelect.value || !fechaInicio || !empleadoInfo || !tiposPermisosData.length) {
+                alertDiv.className = 'alert d-none';
+                return true;
+            }
+
+            // Encontrar el código del tipo de permiso seleccionado
+            const tipoSeleccionado = tiposPermisosData.find(t => t.id == tipoPermisoSelect.value);
+            if (!tipoSeleccionado) return true;
+
+            const codigoPermiso = tipoSeleccionado.codigo;
+
+            // Los permisos C y S no tienen límites
+            if (['C', 'S'].includes(codigoPermiso)) {
+                alertDiv.className = 'alert alert-info d-block';
+                alertDiv.innerHTML = `
+                    <i class="fas fa-info-circle me-2"></i>
+                    Los permisos de ${tipoSeleccionado.nombre} no cuentan para límites administrativos.
+                `;
+                return true;
+            }
+
+            // Solo validar T, AM, PM
+            if (!['T', 'AM', 'PM'].includes(codigoPermiso)) {
+                alertDiv.className = 'alert d-none';
+                return true;
+            }
+
+            // Simular validación (similar a la lógica del backend)
+            const tieneNegociacionColectiva = empleadoInfo.negociacion_colectiva === 1;
+            const uso1Semestre = empleadoInfo.uso_primer_semestre || 0;
+            const uso2Semestre = empleadoInfo.uso_segundo_semestre || 0;
+            const fechaPermisoObj = new Date(fechaInicio);
+            const mes = fechaPermisoObj.getMonth() + 1;
+            const esPrimerSemestre = mes <= 6;
+
+            let limites, usoActual, disponible, periodo;
+            const valorPermiso = codigoPermiso === 'T' ? 1.0 : 0.5;
+
+            if (tieneNegociacionColectiva) {
+                // Con negociación colectiva: 6.0 permisos totales al año
+                const usoTotal = uso1Semestre + uso2Semestre;
+                limites = { maxTotal: 6.0 };
+                usoActual = usoTotal;
+                disponible = limites.maxTotal - usoActual;
+                periodo = 'año';
+            } else {
+                // Sin negociación colectiva: 3.0 permisos totales por semestre
+                const usoSemestre = esPrimerSemestre ? uso1Semestre : uso2Semestre;
+                limites = { maxTotal: 3.0 };
+                usoActual = usoSemestre;
+                disponible = limites.maxTotal - usoActual;
+                periodo = esPrimerSemestre ? 'primer semestre' : 'segundo semestre';
+            }
+
+            if (valorPermiso > disponible) {
+                alertDiv.className = 'alert alert-danger d-block';
+                alertDiv.innerHTML = `
+                    <i class="fas fa-exclamation-triangle me-2"></i>
+                    <strong>¡Límite excedido!</strong> Este permiso ${codigoPermiso} (valor ${valorPermiso}) excedería tu límite. Solo tienes ${disponible} permisos disponibles para el ${periodo}.
+                `;
+                return false;
+            } else if (disponible - valorPermiso <= 0.5) {
+                alertDiv.className = 'alert alert-warning d-block';
+                alertDiv.innerHTML = `
+                    <i class="fas fa-exclamation-triangle me-2"></i>
+                    <strong>¡Atención!</strong> Después de este permiso ${codigoPermiso} te quedarán ${disponible - valorPermiso} permisos disponibles para el ${periodo}.
+                `;
+                return true;
+            } else {
+                alertDiv.className = 'alert alert-success d-block';
+                alertDiv.innerHTML = `
+                    <i class="fas fa-check-circle me-2"></i>
+                    Permiso ${codigoPermiso} válido. Después de este permiso te quedarán ${disponible - valorPermiso} permisos disponibles para el ${periodo}.
+                `;
+                return true;
+            }
+        }
+
+        // Cargar datos al iniciar
+        cargarDashboard().then(() => {
+            cargarPermisos();
+            cargarTiposPermisos().then(() => {
+                // Validar límites cuando cambien los campos
+                document.getElementById('fechaInicio').addEventListener('change', validarLimites);
+            });
+        });
+
+        // Event listener para abrir modal de edición
+        document.getElementById('editarDatosModal').addEventListener('show.bs.modal', function() {
+            abrirModalEditar();
+        });
+    </script>
+</body>
+</html>

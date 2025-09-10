@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Limpiar Cache y localStorage</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            text-align: center;
+        }
+        .button {
+            background: #dc3545;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 10px;
+        }
+        .button:hover {
+            background: #c82333;
+        }
+        .success {
+            background: #28a745;
+        }
+        .success:hover {
+            background: #218838;
+        }
+        .info {
+            background: #17a2b8;
+        }
+        .info:hover {
+            background: #138496;
+        }
+        .log {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 5px;
+            padding: 15px;
+            margin: 20px 0;
+            white-space: pre-wrap;
+            font-family: monospace;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        .warning {
+            background: #fff3cd;
+            border: 1px solid #ffeaa7;
+            border-radius: 5px;
+            padding: 15px;
+            margin: 20px 0;
+            color: #856404;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔧 Herramienta de Limpieza del Sistema</h1>
+        
+        <div class="warning">
+            <strong>⚠️ IMPORTANTE:</strong> Esta herramienta limpiará completamente todos los datos almacenados en el navegador para este sitio. Esto incluye tokens de autenticación, preferencias, y cache.
+        </div>
+
+        <h2>Diagnóstico Actual</h2>
+        <button class="button info" onclick="diagnosticar()">🔍 Diagnosticar Estado</button>
+        <div id="diagnostico" class="log"></div>
+
+        <h2>Acciones de Limpieza</h2>
+        <button class="button" onclick="limpiarLocalStorage()">🗑️ Limpiar localStorage</button>
+        <button class="button" onclick="limpiarSessionStorage()">🗑️ Limpiar sessionStorage</button>
+        <button class="button" onclick="limpiarCookies()">🍪 Limpiar Cookies</button>
+        <button class="button" onclick="limpiarCache()">💾 Limpiar Cache</button>
+        <button class="button success" onclick="limpiarTodo()">🧹 LIMPIAR TODO</button>
+        
+        <h2>Log de Actividad</h2>
+        <div id="log" class="log"></div>
+
+        <h2>Testing</h2>
+        <button class="button info" onclick="testLogin()">🧪 Probar Login Manual</button>
+        <div id="testResult" class="log"></div>
+    </div>
+
+    <script>
+        let logContent = '';
+        
+        function log(message) {
+            logContent += new Date().toLocaleTimeString() + ' - ' + message + '\n';
+            document.getElementById('log').textContent = logContent;
+            console.log(message);
+        }
+
+        function diagnosticar() {
+            let diag = '';
+            
+            diag += '=== DIAGNÓSTICO DEL SISTEMA ===\n';
+            diag += 'URL actual: ' + window.location.href + '\n';
+            diag += 'User Agent: ' + navigator.userAgent + '\n\n';
+            
+            diag += '--- localStorage ---\n';
+            for (let i = 0; i < localStorage.length; i++) {
+                const key = localStorage.key(i);
+                const value = localStorage.getItem(key);
+                diag += `${key}: ${value.substring(0, 100)}${value.length > 100 ? '...' : ''}\n`;
+            }
+            
+            diag += '\n--- sessionStorage ---\n';
+            for (let i = 0; i < sessionStorage.length; i++) {
+                const key = sessionStorage.key(i);
+                const value = sessionStorage.getItem(key);
+                diag += `${key}: ${value.substring(0, 100)}${value.length > 100 ? '...' : ''}\n`;
+            }
+            
+            diag += '\n--- Cookies ---\n';
+            diag += document.cookie || 'Sin cookies';
+            
+            diag += '\n\n--- Service Workers ---\n';
+            if ('serviceWorker' in navigator) {
+                navigator.serviceWorker.getRegistrations().then(registrations => {
+                    diag += `Service Workers registrados: ${registrations.length}\n`;
+                    document.getElementById('diagnostico').textContent = diag;
+                });
+            } else {
+                diag += 'Service Workers no disponibles\n';
+                document.getElementById('diagnostico').textContent = diag;
+            }
+        }
+
+        function limpiarLocalStorage() {
+            try {
+                const keysAntes = localStorage.length;
+                localStorage.clear();
+                log(`✅ localStorage limpiado (${keysAntes} elementos eliminados)`);
+            } catch (error) {
+                log(`❌ Error limpiando localStorage: ${error.message}`);
+            }
+        }
+
+        function limpiarSessionStorage() {
+            try {
+                const keysAntes = sessionStorage.length;
+                sessionStorage.clear();
+                log(`✅ sessionStorage limpiado (${keysAntes} elementos eliminados)`);
+            } catch (error) {
+                log(`❌ Error limpiando sessionStorage: ${error.message}`);
+            }
+        }
+
+        function limpiarCookies() {
+            try {
+                const cookies = document.cookie.split(";");
+                let count = 0;
+                
+                cookies.forEach(cookie => {
+                    const eqPos = cookie.indexOf("=");
+                    const name = eqPos > -1 ? cookie.substr(0, eqPos).trim() : cookie.trim();
+                    if (name) {
+                        document.cookie = name + "=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/";
+                        document.cookie = name + "=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/;domain=" + window.location.hostname;
+                        count++;
+                    }
+                });
+                
+                log(`✅ Cookies limpiadas (${count} cookies eliminadas)`);
+            } catch (error) {
+                log(`❌ Error limpiando cookies: ${error.message}`);
+            }
+        }
+
+        async function limpiarCache() {
+            try {
+                if ('caches' in window) {
+                    const cacheNames = await caches.keys();
+                    
+                    await Promise.all(
+                        cacheNames.map(cacheName => caches.delete(cacheName))
+                    );
+                    
+                    log(`✅ Cache limpiado (${cacheNames.length} caches eliminados)`);
+                } else {
+                    log(`ℹ️ Cache API no disponible en este navegador`);
+                }
+            } catch (error) {
+                log(`❌ Error limpiando cache: ${error.message}`);
+            }
+        }
+
+        async function limpiarTodo() {
+            log('🧹 Iniciando limpieza completa...');
+            
+            limpiarLocalStorage();
+            limpiarSessionStorage();
+            limpiarCookies();
+            await limpiarCache();
+            
+            // Limpiar Service Workers
+            if ('serviceWorker' in navigator) {
+                try {
+                    const registrations = await navigator.serviceWorker.getRegistrations();
+                    await Promise.all(registrations.map(registration => registration.unregister()));
+                    log(`✅ Service Workers eliminados (${registrations.length} registros)`);
+                } catch (error) {
+                    log(`❌ Error eliminando Service Workers: ${error.message}`);
+                }
+            }
+            
+            log('✅ LIMPIEZA COMPLETA TERMINADA');
+            log('ℹ️ Se recomienda cerrar y reabrir el navegador');
+            
+            // Opcional: recargar la página después de 3 segundos
+            setTimeout(() => {
+                if (confirm('¿Deseas recargar la página ahora?')) {
+                    window.location.reload(true);
+                }
+            }, 3000);
+        }
+
+        async function testLogin() {
+            try {
+                document.getElementById('testResult').textContent = 'Probando login...';
+                
+                // Test con un RUT específico
+                const testRut = '18.208.947-8'; // Guillermo David Barria Uribe
+                
+                const response = await fetch('/api/auth/login/empleado', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ rut: testRut })
+                });
+                
+                const data = await response.json();
+                
+                let result = '=== RESULTADO DEL TEST DE LOGIN ===\n';
+                result += `RUT probado: ${testRut}\n`;
+                result += `Status: ${response.status}\n`;
+                result += `Success: ${data.success}\n`;
+                
+                if (data.success && data.data && data.data.user) {
+                    result += `Nombre obtenido: ${data.data.user.nombre}\n`;
+                    result += `ID: ${data.data.user.id}\n`;
+                    result += `RUT: ${data.data.user.rut}\n`;
+                    result += `Cargo: ${data.data.user.cargo}\n`;
+                    
+                    // Guardar token temporalmente para más tests
+                    localStorage.setItem('test_token', data.data.token);
+                    result += 'Token guardado temporalmente para pruebas\n';
+                } else {
+                    result += `Error: ${data.message || 'Error desconocido'}\n`;
+                }
+                
+                document.getElementById('testResult').textContent = result;
+                
+            } catch (error) {
+                document.getElementById('testResult').textContent = `Error en test: ${error.message}`;
+            }
+        }
+    </script>
+</body>
+</html>

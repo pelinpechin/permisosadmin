@@ -1,0 +1,614 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard Administrador - Sistema de Permisos</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        body {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+        .dashboard-container {
+            background: rgba(255,255,255,0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            margin: 20px;
+            padding: 30px;
+            box-shadow: 0 15px 35px rgba(0,0,0,0.3);
+        }
+        .header-card {
+            background: linear-gradient(45deg, #007bff, #6610f2);
+            color: white;
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 30px;
+        }
+        .stats-card {
+            border-radius: 12px;
+            border: none;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        .permiso-card {
+            border-radius: 12px;
+            margin-bottom: 15px;
+            border: none;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        }
+        .status-pendiente { border-left: 5px solid #ffc107; }
+        .status-aprobado { border-left: 5px solid #28a745; }
+        .status-rechazado { border-left: 5px solid #dc3545; }
+        .btn-primary {
+            background: linear-gradient(45deg, #007bff, #6610f2);
+            border: none;
+            border-radius: 8px;
+        }
+        .filter-card {
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        .action-buttons .btn {
+            margin: 0 2px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container-fluid">
+        <div class="dashboard-container">
+            <div class="header-card">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h2><i class="fas fa-user-shield me-2"></i>Panel de Administrador</h2>
+                        <p class="mb-0">Gestión de Solicitudes de Permisos</p>
+                    </div>
+                    <div>
+                        <button class="btn btn-light me-2" onclick="cargarPermisos()">
+                            <i class="fas fa-sync-alt"></i> Actualizar
+                        </button>
+                        <button class="btn btn-outline-light" onclick="cerrarSesion()">
+                            <i class="fas fa-sign-out-alt"></i> Cerrar Sesión
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Estadísticas -->
+            <div class="row mb-4">
+                <div class="col-md-3">
+                    <div class="stats-card card text-center">
+                        <div class="card-body">
+                            <i class="fas fa-file-alt text-primary" style="font-size: 2.5rem;"></i>
+                            <h4 class="mt-2" id="totalPermisos">0</h4>
+                            <p class="text-muted mb-0">Total Permisos</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="stats-card card text-center">
+                        <div class="card-body">
+                            <i class="fas fa-clock text-warning" style="font-size: 2.5rem;"></i>
+                            <h4 class="mt-2" id="permisosPendientes">0</h4>
+                            <p class="text-muted mb-0">Pendientes</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="stats-card card text-center">
+                        <div class="card-body">
+                            <i class="fas fa-check-circle text-success" style="font-size: 2.5rem;"></i>
+                            <h4 class="mt-2" id="permisosAprobados">0</h4>
+                            <p class="text-muted mb-0">Aprobados</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="stats-card card text-center">
+                        <div class="card-body">
+                            <i class="fas fa-times-circle text-danger" style="font-size: 2.5rem;"></i>
+                            <h4 class="mt-2" id="permisosRechazados">0</h4>
+                            <p class="text-muted mb-0">Rechazados</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Navegación por pestañas -->
+            <ul class="nav nav-tabs mb-4" id="adminTabs" role="tablist">
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link active" id="permisos-tab" data-bs-toggle="tab" data-bs-target="#permisos-panel" type="button" role="tab">
+                        <i class="fas fa-list me-2"></i>Permisos
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="empleados-tab" data-bs-toggle="tab" data-bs-target="#empleados-panel" type="button" role="tab">
+                        <i class="fas fa-users me-2"></i>Empleados
+                    </button>
+                </li>
+            </ul>
+
+            <!-- Contenido de las pestañas -->
+            <div class="tab-content" id="adminTabsContent">
+                <!-- Panel de Permisos -->
+                <div class="tab-pane fade show active" id="permisos-panel" role="tabpanel">
+                    <!-- Filtros -->
+                    <div class="filter-card">
+                        <div class="row align-items-end">
+                            <div class="col-md-3">
+                                <label for="filtroEstado" class="form-label">Filtrar por Estado</label>
+                                <select class="form-select" id="filtroEstado" onchange="aplicarFiltros()">
+                                    <option value="">Todos los estados</option>
+                                    <option value="PENDIENTE">Pendientes</option>
+                                    <option value="APROBADO">Aprobados</option>
+                                    <option value="RECHAZADO">Rechazados</option>
+                                </select>
+                            </div>
+                            <div class="col-md-4">
+                                <label for="filtroEmpleado" class="form-label">Buscar Empleado</label>
+                                <input type="text" class="form-control" id="filtroEmpleado" 
+                                       placeholder="Nombre del empleado..." onkeyup="aplicarFiltros()">
+                            </div>
+                            <div class="col-md-3">
+                                <label for="filtroFecha" class="form-label">Desde Fecha</label>
+                                <input type="date" class="form-control" id="filtroFecha" onchange="aplicarFiltros()">
+                            </div>
+                            <div class="col-md-2">
+                                <button class="btn btn-outline-secondary w-100" onclick="limpiarFiltros()">
+                                    <i class="fas fa-eraser"></i> Limpiar
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Lista de Permisos -->
+                    <div class="card">
+                        <div class="card-header">
+                            <h5><i class="fas fa-list me-2"></i>Solicitudes de Permisos</h5>
+                        </div>
+                        <div class="card-body" id="listaPermisos">
+                            <div class="text-center p-4">
+                                <div class="spinner-border text-primary" role="status">
+                                    <span class="visually-hidden">Cargando...</span>
+                                </div>
+                                <p class="mt-2">Cargando permisos...</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Panel de Empleados -->
+                <div class="tab-pane fade" id="empleados-panel" role="tabpanel">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5><i class="fas fa-users me-2"></i>Gestión de Empleados</h5>
+                        </div>
+                        <div class="card-body" id="listaEmpleados">
+                            <div class="text-center p-4">
+                                <div class="spinner-border text-primary" role="status">
+                                    <span class="visually-hidden">Cargando...</span>
+                                </div>
+                                <p class="mt-2">Cargando empleados...</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Observaciones -->
+    <div class="modal fade" id="observacionesModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="fas fa-comment me-2"></i>Agregar Observaciones</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <form id="formObservaciones" onsubmit="procesarPermiso(event)">
+                    <div class="modal-body">
+                        <input type="hidden" id="permisoId">
+                        <input type="hidden" id="nuevoEstado">
+                        <div class="mb-3">
+                            <label for="observaciones" class="form-label">Observaciones</label>
+                            <textarea class="form-control" id="observaciones" rows="4" 
+                                    placeholder="Agrega observaciones sobre esta decisión..."></textarea>
+                        </div>
+                        <div class="alert alert-info">
+                            <i class="fas fa-info-circle me-2"></i>
+                            Estás a punto de <strong id="accionTexto"></strong> esta solicitud.
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                        <button type="submit" class="btn" id="btnConfirmar">Confirmar</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        const token = localStorage.getItem('auth_token');
+        let todosLosPermisos = [];
+
+        if (!token) {
+            window.location.href = '/login_simple.html';
+        }
+
+        async function cargarPermisos() {
+            try {
+                const response = await fetch('/api/admin/permisos', {
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+
+                if (response.ok) {
+                    todosLosPermisos = await response.json();
+                    mostrarPermisos(todosLosPermisos);
+                    actualizarEstadisticas(todosLosPermisos);
+                } else {
+                    throw new Error('Error al cargar permisos');
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                document.getElementById('listaPermisos').innerHTML = `
+                    <div class="alert alert-danger">
+                        <i class="fas fa-exclamation-triangle me-2"></i>
+                        Error al cargar los permisos: ${error.message}
+                    </div>
+                `;
+            }
+        }
+
+        function mostrarPermisos(permisos) {
+            const container = document.getElementById('listaPermisos');
+            
+            if (permisos.length === 0) {
+                container.innerHTML = `
+                    <div class="text-center p-4 text-muted">
+                        <i class="fas fa-inbox" style="font-size: 3rem; opacity: 0.5;"></i>
+                        <p class="mt-3">No hay solicitudes de permisos</p>
+                    </div>
+                `;
+                return;
+            }
+
+            const html = permisos.map(permiso => {
+                const estado = permiso.estado || 'PENDIENTE';
+                const statusClass = `status-${estado.toLowerCase()}`;
+                const statusBadge = {
+                    'PENDIENTE': 'warning',
+                    'APROBADO': 'success',
+                    'RECHAZADO': 'danger'
+                };
+
+                return `
+                    <div class="card permiso-card ${statusClass}">
+                        <div class="card-body">
+                            <div class="row">
+                                <div class="col-md-8">
+                                    <div class="d-flex align-items-start">
+                                        <div class="me-3">
+                                            <i class="fas fa-user-circle text-primary" style="font-size: 2.5rem;"></i>
+                                        </div>
+                                        <div class="flex-grow-1">
+                                            <h6 class="card-title mb-1">
+                                                <strong>${permiso.empleado_nombre || 'Empleado no encontrado'}</strong>
+                                            </h6>
+                                            <p class="text-muted mb-2">
+                                                <i class="fas fa-calendar-alt me-1"></i>
+                                                ${permiso.tipo_permiso_nombre || 'Tipo no definido'}
+                                            </p>
+                                            <p class="mb-2">
+                                                <strong>Período:</strong> ${permiso.fecha_inicio} al ${permiso.fecha_fin}
+                                            </p>
+                                            <p class="mb-2"><strong>Motivo:</strong> ${permiso.motivo}</p>
+                                            ${permiso.observaciones ? `
+                                                <p class="mb-2">
+                                                    <strong>Observaciones:</strong> 
+                                                    <span class="text-muted">${permiso.observaciones}</span>
+                                                </p>
+                                            ` : ''}
+                                            <small class="text-muted">
+                                                <i class="fas fa-clock me-1"></i>
+                                                Solicitado el ${new Date(permiso.created_at).toLocaleDateString()}
+                                            </small>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-4 text-end">
+                                    <div class="mb-3">
+                                        <span class="badge bg-${statusBadge[estado]} fs-6">
+                                            ${estado}
+                                        </span>
+                                    </div>
+                                    ${estado === 'PENDIENTE' ? `
+                                        <div class="action-buttons">
+                                            <button class="btn btn-success btn-sm" 
+                                                    onclick="mostrarModalObservaciones(${permiso.id}, 'APROBADO')">
+                                                <i class="fas fa-check"></i> Aprobar
+                                            </button>
+                                            <button class="btn btn-danger btn-sm" 
+                                                    onclick="mostrarModalObservaciones(${permiso.id}, 'RECHAZADO')">
+                                                <i class="fas fa-times"></i> Rechazar
+                                            </button>
+                                        </div>
+                                    ` : ''}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+
+            container.innerHTML = html;
+        }
+
+        function actualizarEstadisticas(permisos) {
+            const total = permisos.length;
+            const pendientes = permisos.filter(p => p.estado === 'PENDIENTE').length;
+            const aprobados = permisos.filter(p => p.estado === 'APROBADO').length;
+            const rechazados = permisos.filter(p => p.estado === 'RECHAZADO').length;
+
+            document.getElementById('totalPermisos').textContent = total;
+            document.getElementById('permisosPendientes').textContent = pendientes;
+            document.getElementById('permisosAprobados').textContent = aprobados;
+            document.getElementById('permisosRechazados').textContent = rechazados;
+        }
+
+        function aplicarFiltros() {
+            const filtroEstado = document.getElementById('filtroEstado').value.toLowerCase();
+            const filtroEmpleado = document.getElementById('filtroEmpleado').value.toLowerCase();
+            const filtroFecha = document.getElementById('filtroFecha').value;
+
+            let permisosFiltrados = todosLosPermisos.filter(permiso => {
+                const coincideEstado = !filtroEstado || permiso.estado.toLowerCase() === filtroEstado;
+                const coincideEmpleado = !filtroEmpleado || 
+                    (permiso.empleado_nombre && permiso.empleado_nombre.toLowerCase().includes(filtroEmpleado));
+                const coincideFecha = !filtroFecha || 
+                    new Date(permiso.created_at) >= new Date(filtroFecha);
+
+                return coincideEstado && coincideEmpleado && coincideFecha;
+            });
+
+            mostrarPermisos(permisosFiltrados);
+        }
+
+        function limpiarFiltros() {
+            document.getElementById('filtroEstado').value = '';
+            document.getElementById('filtroEmpleado').value = '';
+            document.getElementById('filtroFecha').value = '';
+            mostrarPermisos(todosLosPermisos);
+        }
+
+        function mostrarModalObservaciones(permisoId, nuevoEstado) {
+            document.getElementById('permisoId').value = permisoId;
+            document.getElementById('nuevoEstado').value = nuevoEstado;
+            document.getElementById('observaciones').value = '';
+            
+            const accion = nuevoEstado === 'APROBADO' ? 'aprobar' : 'rechazar';
+            document.getElementById('accionTexto').textContent = accion;
+            
+            const btnConfirmar = document.getElementById('btnConfirmar');
+            btnConfirmar.className = `btn ${nuevoEstado === 'APROBADO' ? 'btn-success' : 'btn-danger'}`;
+            btnConfirmar.textContent = nuevoEstado === 'APROBADO' ? 'Aprobar' : 'Rechazar';
+
+            new bootstrap.Modal(document.getElementById('observacionesModal')).show();
+        }
+
+        async function procesarPermiso(event) {
+            event.preventDefault();
+            
+            const permisoId = document.getElementById('permisoId').value;
+            const nuevoEstado = document.getElementById('nuevoEstado').value;
+            const observaciones = document.getElementById('observaciones').value;
+
+            try {
+                const response = await fetch(`/api/admin/permisos/${permisoId}`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify({
+                        estado: nuevoEstado,
+                        observaciones: observaciones
+                    })
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    bootstrap.Modal.getInstance(document.getElementById('observacionesModal')).hide();
+                    cargarPermisos(); // Recargar la lista
+                    
+                    const toast = document.createElement('div');
+                    toast.className = 'position-fixed top-0 end-0 p-3';
+                    toast.style.zIndex = '1050';
+                    toast.innerHTML = `
+                        <div class="toast show" role="alert">
+                            <div class="toast-header">
+                                <i class="fas fa-check-circle text-success me-2"></i>
+                                <strong class="me-auto">Éxito</strong>
+                                <button type="button" class="btn-close" data-bs-dismiss="toast"></button>
+                            </div>
+                            <div class="toast-body">
+                                ${data.message}
+                            </div>
+                        </div>
+                    `;
+                    document.body.appendChild(toast);
+                    setTimeout(() => toast.remove(), 5000);
+                } else {
+                    throw new Error(data.error || 'Error al procesar el permiso');
+                }
+            } catch (error) {
+                alert('Error: ' + error.message);
+            }
+        }
+
+        // === FUNCIONES DE GESTIÓN DE EMPLEADOS ===
+        
+        async function cargarEmpleados() {
+            try {
+                const response = await fetch('/api/admin/empleados', {
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    mostrarEmpleados(data);
+                } else {
+                    throw new Error(data.error || 'Error al cargar empleados');
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                document.getElementById('listaEmpleados').innerHTML = `
+                    <div class="alert alert-danger">
+                        <i class="fas fa-exclamation-triangle me-2"></i>
+                        Error al cargar empleados: ${error.message}
+                    </div>
+                `;
+            }
+        }
+
+        function mostrarEmpleados(empleados) {
+            const container = document.getElementById('listaEmpleados');
+            
+            if (!empleados || empleados.length === 0) {
+                container.innerHTML = `
+                    <div class="text-center p-4 text-muted">
+                        <i class="fas fa-users" style="font-size: 3rem; opacity: 0.5;"></i>
+                        <p class="mt-3">No se encontraron empleados</p>
+                    </div>
+                `;
+                return;
+            }
+
+            const html = empleados.map(empleado => {
+                const tieneNegociacionColectiva = empleado.negociacion_colectiva === 1;
+                const uso1Sem = empleado.uso_primer_semestre || 0;
+                const uso2Sem = empleado.uso_segundo_semestre || 0;
+                const usoTotal = uso1Sem + uso2Sem;
+
+                return `
+                    <div class="card mb-3">
+                        <div class="card-body">
+                            <div class="row align-items-center">
+                                <div class="col-md-4">
+                                    <h6 class="mb-1">
+                                        <i class="fas fa-user me-2"></i>${empleado.nombre}
+                                    </h6>
+                                    <p class="text-muted mb-1"><strong>RUT:</strong> ${empleado.rut}</p>
+                                    <p class="text-muted mb-1"><strong>Cargo:</strong> ${empleado.cargo}</p>
+                                    ${empleado.email ? `<p class="text-muted mb-1"><strong>Email:</strong> ${empleado.email}</p>` : ''}
+                                </div>
+                                <div class="col-md-3">
+                                    <h6>Estado de Negociación Colectiva</h6>
+                                    <div class="form-check form-switch">
+                                        <input class="form-check-input" type="checkbox" 
+                                               id="negociacion_${empleado.id}" 
+                                               ${tieneNegociacionColectiva ? 'checked' : ''}
+                                               onchange="cambiarNegociacionColectiva(${empleado.id}, this.checked)">
+                                        <label class="form-check-label" for="negociacion_${empleado.id}">
+                                            <span class="badge ${tieneNegociacionColectiva ? 'bg-success' : 'bg-warning'}">
+                                                ${tieneNegociacionColectiva ? 'CON negociación colectiva' : 'SIN negociación colectiva'}
+                                            </span>
+                                        </label>
+                                    </div>
+                                </div>
+                                <div class="col-md-3">
+                                    <h6>Uso de Permisos</h6>
+                                    <p class="mb-1"><strong>1° Semestre:</strong> ${uso1Sem}</p>
+                                    <p class="mb-1"><strong>2° Semestre:</strong> ${uso2Sem}</p>
+                                    <p class="mb-0"><strong>Total:</strong> ${usoTotal}</p>
+                                </div>
+                                <div class="col-md-2">
+                                    <h6>Límites Aplicables</h6>
+                                    ${tieneNegociacionColectiva ? 
+                                        '<p class="text-info mb-0"><small>• 6.0 permisos totales por año<br>• T = 1.0, AM/PM = 0.5</small></p>' : 
+                                        '<p class="text-warning mb-0"><small>• 3.0 permisos totales por semestre<br>• T = 1.0, AM/PM = 0.5</small></p>'
+                                    }
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+
+            container.innerHTML = html;
+        }
+
+        async function cambiarNegociacionColectiva(empleadoId, tieneNegociacion) {
+            try {
+                const response = await fetch(`/api/admin/empleados/${empleadoId}/negociacion-colectiva`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify({
+                        negociacion_colectiva: tieneNegociacion
+                    })
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    // Mostrar toast de éxito
+                    const toast = document.createElement('div');
+                    toast.className = 'position-fixed top-0 end-0 p-3';
+                    toast.style.zIndex = '1050';
+                    toast.innerHTML = `
+                        <div class="toast show" role="alert">
+                            <div class="toast-header">
+                                <i class="fas fa-check-circle text-success me-2"></i>
+                                <strong class="me-auto">Éxito</strong>
+                                <button type="button" class="btn-close" data-bs-dismiss="toast"></button>
+                            </div>
+                            <div class="toast-body">
+                                ${data.message}
+                            </div>
+                        </div>
+                    `;
+                    document.body.appendChild(toast);
+                    setTimeout(() => toast.remove(), 5000);
+
+                    // Recargar lista para actualizar los límites mostrados
+                    setTimeout(() => cargarEmpleados(), 1000);
+                } else {
+                    throw new Error(data.error || 'Error al actualizar');
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                alert('Error: ' + error.message);
+                // Revertir el checkbox
+                document.getElementById(`negociacion_${empleadoId}`).checked = !tieneNegociacion;
+            }
+        }
+
+        // Cargar empleados cuando se hace clic en la pestaña
+        document.getElementById('empleados-tab').addEventListener('click', function() {
+            cargarEmpleados();
+        });
+
+        function cerrarSesion() {
+            localStorage.clear();
+            sessionStorage.clear();
+            window.location.href = '/login_simple.html';
+        }
+
+        // Cargar permisos al iniciar
+        cargarPermisos();
+    </script>
+</body>
+</html>

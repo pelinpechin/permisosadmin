@@ -1,0 +1,1841 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Portal Empleado - Sistema de Permisos Completo</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        body {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            font-family: 'Arial', sans-serif;
+        }
+        
+        .container-main {
+            background: rgba(255,255,255,0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            margin: 20px auto;
+            padding: 30px;
+            box-shadow: 0 15px 35px rgba(0,0,0,0.3);
+            max-width: 1200px;
+        }
+        
+        .header-card {
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            color: white;
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 30px;
+        }
+        
+        .data-card {
+            border-radius: 15px;
+            border: none;
+            box-shadow: 0 8px 25px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+            transition: all 0.3s ease;
+        }
+        
+        .data-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 12px 35px rgba(0,0,0,0.15);
+        }
+        
+        .permiso-card {
+            border-radius: 12px;
+            margin-bottom: 15px;
+            border: none;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            transition: all 0.3s ease;
+        }
+        
+        .permiso-card:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 25px rgba(0,0,0,0.15);
+        }
+        
+        .status-pendiente { border-left: 5px solid #ffc107; }
+        .status-aprobado { border-left: 5px solid #28a745; }
+        .status-rechazado { border-left: 5px solid #dc3545; }
+        
+        .btn-primary {
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            border: none;
+            border-radius: 10px;
+            transition: all 0.3s ease;
+        }
+        
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(102, 126, 234, 0.3);
+        }
+        
+        .login-section {
+            background: white;
+            border-radius: 20px;
+            padding: 40px;
+            box-shadow: 0 15px 35px rgba(0,0,0,0.1);
+            margin: 50px auto;
+            max-width: 400px;
+        }
+        
+        .edit-field {
+            position: relative;
+            margin-bottom: 15px;
+        }
+        
+        .edit-field input {
+            border-radius: 10px;
+            border: 2px solid #e9ecef;
+            padding: 12px;
+            transition: all 0.3s ease;
+        }
+        
+        .edit-field input:focus {
+            border-color: #667eea;
+            box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.25);
+        }
+        
+        .balance-card {
+            background: linear-gradient(45deg, #f8f9fa, #e9ecef);
+            border-radius: 15px;
+            padding: 20px;
+            text-align: center;
+        }
+        
+        .hidden { display: none !important; }
+        
+        .toast-container {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 1050;
+        }
+        
+        .section {
+            margin-bottom: 30px;
+        }
+        
+        .stats-card {
+            text-align: center;
+            padding: 20px;
+            border-radius: 15px;
+            background: white;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        }
+        
+        .loading-spinner {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 40px;
+        }
+    </style>
+</head>
+<body>
+    <div class="toast-container" id="toastContainer"></div>
+    
+    <!-- Sección de Login -->
+    <div id="loginSection" class="hidden">
+        <div class="container">
+            <div class="login-section">
+                <div class="text-center mb-4">
+                    <h2><i class="fas fa-user-circle text-primary mb-3" style="font-size: 3rem;"></i></h2>
+                    <h3>Portal Empleado</h3>
+                    <p class="text-muted">Sistema de Permisos Administrativos</p>
+                </div>
+                
+                <!-- Botones de administración -->
+                <div class="text-center mb-4">
+                    <button class="btn btn-outline-primary btn-sm me-2" onclick="mostrarImportarCSV()">
+                        <i class="fas fa-upload"></i> Importar CSV
+                    </button>
+                    <button class="btn btn-outline-secondary btn-sm" onclick="mostrarCrearUsuario()">
+                        <i class="fas fa-user-plus"></i> Crear Usuario
+                    </button>
+                </div>
+                
+                <form id="loginForm">
+                    <div class="edit-field">
+                        <label for="loginRut" class="form-label">RUT</label>
+                        <input type="text" class="form-control" id="loginRut" placeholder="12.345.678-9" required>
+                    </div>
+                    
+                    <div class="edit-field">
+                        <label for="loginPassword" class="form-label">Contraseña</label>
+                        <input type="password" class="form-control" id="loginPassword" required>
+                    </div>
+                    
+                    <button type="submit" class="btn btn-primary w-100 mb-3">
+                        <i class="fas fa-sign-in-alt me-2"></i>Iniciar Sesión
+                    </button>
+                    
+                    <div class="text-center">
+                        <a href="#" onclick="mostrarCrearPassword()" class="text-decoration-none d-block mb-2">
+                            ¿No tienes contraseña? Crear una aquí
+                        </a>
+                        <a href="#" onclick="mostrarRecuperarPassword()" class="text-decoration-none">
+                            ¿Olvidaste tu contraseña?
+                        </a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Sección para crear contraseña -->
+    <div id="crearPasswordSection" class="hidden">
+        <div class="container">
+            <div class="login-section">
+                <div class="text-center mb-4">
+                    <h3>Crear Contraseña</h3>
+                    <p class="text-muted">Ingresa tu RUT para crear tu contraseña</p>
+                </div>
+                
+                <form id="verificarRutForm">
+                    <div class="edit-field">
+                        <label for="verificarRut" class="form-label">RUT</label>
+                        <input type="text" class="form-control" id="verificarRut" placeholder="12.345.678-9" required>
+                    </div>
+                    
+                    <button type="submit" class="btn btn-primary w-100 mb-3">
+                        <i class="fas fa-search me-2"></i>Verificar RUT
+                    </button>
+                    
+                    <div class="text-center">
+                        <a href="#" onclick="mostrarLogin()" class="text-decoration-none">
+                            ← Volver al login
+                        </a>
+                    </div>
+                </form>
+                
+                <!-- Formulario para crear contraseña (oculto inicialmente) -->
+                <form id="crearPasswordForm" class="hidden">
+                    <div class="alert alert-info">
+                        <i class="fas fa-user me-2"></i>
+                        Empleado encontrado: <strong id="empleadoEncontrado"></strong>
+                    </div>
+                    
+                    <div class="edit-field">
+                        <label for="nuevaPassword" class="form-label">Nueva Contraseña</label>
+                        <input type="password" class="form-control" id="nuevaPassword" minlength="6" required>
+                    </div>
+                    
+                    <div class="edit-field">
+                        <label for="confirmarPassword" class="form-label">Confirmar Contraseña</label>
+                        <input type="password" class="form-control" id="confirmarPassword" minlength="6" required>
+                    </div>
+                    
+                    <button type="submit" class="btn btn-primary w-100 mb-3">
+                        <i class="fas fa-key me-2"></i>Crear Contraseña
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Sección Recuperar Contraseña -->
+    <div id="recuperarPasswordSection" class="hidden">
+        <div class="container">
+            <div class="login-section">
+                <div class="text-center mb-4">
+                    <h3><i class="fas fa-key text-primary me-2"></i>Recuperar Contraseña</h3>
+                    <p class="text-muted">Te enviaremos un enlace de recuperación a tu email</p>
+                </div>
+                
+                <!-- Formulario para solicitar recuperación -->
+                <form id="formSolicitarRecuperacion">
+                    <div class="edit-field">
+                        <label for="rutRecuperacion" class="form-label">RUT</label>
+                        <input type="text" class="form-control" id="rutRecuperacion" placeholder="12.345.678-9" required>
+                    </div>
+                    
+                    <div class="edit-field">
+                        <label for="emailRecuperacion" class="form-label">Email</label>
+                        <input type="email" class="form-control" id="emailRecuperacion" placeholder="tu@email.com" required>
+                        <div class="form-text">Debe coincidir con el email registrado en tu cuenta</div>
+                    </div>
+                    
+                    <button type="submit" class="btn btn-primary w-100 mb-3">
+                        <i class="fas fa-envelope me-2"></i>Enviar Enlace de Recuperación
+                    </button>
+                    
+                    <div class="text-center">
+                        <a href="#" onclick="mostrarLogin()" class="text-decoration-none">
+                            ← Volver al login
+                        </a>
+                    </div>
+                </form>
+                
+                <!-- Mensaje de éxito (oculto inicialmente) -->
+                <div id="mensajeRecuperacionExito" class="hidden text-center">
+                    <div class="alert alert-success">
+                        <i class="fas fa-check-circle me-2"></i>
+                        <strong>¡Enlace enviado!</strong><br>
+                        Revisa tu email y sigue las instrucciones para restablecer tu contraseña.
+                    </div>
+                    <button class="btn btn-outline-primary" onclick="mostrarLogin()">
+                        <i class="fas fa-arrow-left me-2"></i>Volver al Login
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Sección Restablecer Contraseña -->
+    <div id="restablecerPasswordSection" class="hidden">
+        <div class="container">
+            <div class="login-section">
+                <div class="text-center mb-4">
+                    <h3><i class="fas fa-lock text-primary me-2"></i>Nueva Contraseña</h3>
+                    <p class="text-muted">Ingresa tu nueva contraseña</p>
+                </div>
+                
+                <form id="formRestablecerPassword">
+                    <input type="hidden" id="tokenReset">
+                    
+                    <div class="edit-field">
+                        <label for="nuevaPasswordReset" class="form-label">Nueva Contraseña</label>
+                        <input type="password" class="form-control" id="nuevaPasswordReset" minlength="6" required>
+                    </div>
+                    
+                    <div class="edit-field">
+                        <label for="confirmarPasswordReset" class="form-label">Confirmar Nueva Contraseña</label>
+                        <input type="password" class="form-control" id="confirmarPasswordReset" minlength="6" required>
+                    </div>
+                    
+                    <button type="submit" class="btn btn-primary w-100 mb-3">
+                        <i class="fas fa-save me-2"></i>Guardar Nueva Contraseña
+                    </button>
+                    
+                    <div class="text-center">
+                        <a href="#" onclick="mostrarLogin()" class="text-decoration-none">
+                            ← Ir al login
+                        </a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Sección Importar CSV -->
+    <div id="importarCSVSection" class="hidden">
+        <div class="container">
+            <div class="login-section" style="max-width: 600px;">
+                <div class="text-center mb-4">
+                    <h3><i class="fas fa-upload text-primary me-2"></i>Importar Empleados desde CSV</h3>
+                    <p class="text-muted">Carga el archivo CSV con los datos de empleados</p>
+                </div>
+                
+                <div class="mb-4">
+                    <label for="archivoCSV" class="form-label">Seleccionar archivo CSV</label>
+                    <input type="file" class="form-control" id="archivoCSV" accept=".csv" required>
+                    <div class="form-text">
+                        Formato esperado: Nombre, RUT, Email, Fecha Nacimiento, Fecha Ingreso, Fecha Término, Horas, Supervisor, Cargo
+                    </div>
+                </div>
+                
+                <div id="previewCSV" class="mb-4 d-none">
+                    <h5>Vista previa (primeros 5 registros):</h5>
+                    <div class="table-responsive">
+                        <table class="table table-sm" id="tablaPreview">
+                            <thead class="table-light"></thead>
+                            <tbody></tbody>
+                        </table>
+                    </div>
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle me-2"></i>
+                        Se detectaron <strong id="totalRegistros">0</strong> empleados en el archivo
+                    </div>
+                </div>
+                
+                <div class="d-flex gap-2">
+                    <button type="button" class="btn btn-secondary" onclick="mostrarLogin()">
+                        <i class="fas fa-arrow-left me-2"></i>Cancelar
+                    </button>
+                    <button type="button" class="btn btn-primary flex-grow-1" id="btnProcesarCSV" onclick="procesarCSV()" disabled>
+                        <i class="fas fa-database me-2"></i>Importar a la Base de Datos
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Sección Crear Usuario -->
+    <div id="crearUsuarioSection" class="hidden">
+        <div class="container">
+            <div class="login-section">
+                <div class="text-center mb-4">
+                    <h3><i class="fas fa-user-plus text-primary me-2"></i>Crear Nuevo Usuario</h3>
+                    <p class="text-muted">Agregar empleado manualmente</p>
+                </div>
+                
+                <form id="formCrearUsuario">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="edit-field">
+                                <label for="nuevoNombre" class="form-label">Nombre Completo</label>
+                                <input type="text" class="form-control" id="nuevoNombre" required>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="edit-field">
+                                <label for="nuevoRut" class="form-label">RUT</label>
+                                <input type="text" class="form-control" id="nuevoRut" placeholder="12.345.678-9" required>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="edit-field">
+                                <label for="nuevoEmail" class="form-label">Email</label>
+                                <input type="email" class="form-control" id="nuevoEmail" required>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="edit-field">
+                                <label for="nuevoCargo" class="form-label">Cargo</label>
+                                <input type="text" class="form-control" id="nuevoCargo" required>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="edit-field">
+                                <label for="fechaNacimiento" class="form-label">Fecha de Nacimiento</label>
+                                <input type="date" class="form-control" id="fechaNacimiento">
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="edit-field">
+                                <label for="fechaIngreso" class="form-label">Fecha de Ingreso</label>
+                                <input type="date" class="form-control" id="fechaIngreso">
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="edit-field">
+                                <label for="horasSemanales" class="form-label">Horas Semanales</label>
+                                <input type="number" class="form-control" id="horasSemanales" min="1" max="48" value="44">
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="edit-field">
+                                <label for="supervisor" class="form-label">Supervisor</label>
+                                <input type="text" class="form-control" id="supervisor">
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="d-flex gap-2">
+                        <button type="button" class="btn btn-secondary" onclick="mostrarLogin()">
+                            <i class="fas fa-arrow-left me-2"></i>Cancelar
+                        </button>
+                        <button type="submit" class="btn btn-primary flex-grow-1">
+                            <i class="fas fa-user-plus me-2"></i>Crear Empleado
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Portal Principal del Empleado -->
+    <div id="dashboardSection" class="hidden">
+        <div class="container-fluid">
+            <div class="container-main">
+                <!-- Header -->
+                <div class="header-card">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h2><i class="fas fa-user me-2"></i><span id="nombreEmpleado">Cargando...</span></h2>
+                            <p class="mb-0">Portal de Empleado - Sistema de Permisos</p>
+                        </div>
+                        <div>
+                            <button class="btn btn-light me-2" onclick="actualizarDashboard()">
+                                <i class="fas fa-sync-alt"></i> Actualizar
+                            </button>
+                            <button class="btn btn-outline-light" onclick="cerrarSesion()">
+                                <i class="fas fa-sign-out-alt"></i> Cerrar Sesión
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="row">
+                    <!-- Columna Principal -->
+                    <div class="col-lg-8">
+                        <!-- Sección Mis Solicitudes -->
+                        <div class="section">
+                            <div class="data-card card">
+                                <div class="card-header d-flex justify-content-between align-items-center">
+                                    <h5><i class="fas fa-list me-2"></i>Mis Solicitudes de Permisos</h5>
+                                    <button class="btn btn-primary" onclick="mostrarModalNuevoPermiso()">
+                                        <i class="fas fa-plus"></i> Nueva Solicitud
+                                    </button>
+                                </div>
+                                <div class="card-body" id="listaSolicitudes">
+                                    <div class="loading-spinner">
+                                        <div class="spinner-border text-primary" role="status">
+                                            <span class="visually-hidden">Cargando...</span>
+                                        </div>
+                                        <span class="ms-2">Cargando solicitudes...</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Columna Lateral -->
+                    <div class="col-lg-4">
+                        <!-- Mis Datos Personales -->
+                        <div class="section">
+                            <div class="data-card card">
+                                <div class="card-header d-flex justify-content-between align-items-center">
+                                    <h5><i class="fas fa-user-edit me-2"></i>Mis Datos</h5>
+                                    <button class="btn btn-sm btn-outline-primary" onclick="mostrarModalEditarDatos()">
+                                        <i class="fas fa-edit"></i>
+                                    </button>
+                                </div>
+                                <div class="card-body" id="datosPersonales">
+                                    <div class="mb-2">
+                                        <strong><i class="fas fa-id-card me-1"></i> RUT:</strong> 
+                                        <span id="datosRut" class="text-muted">-</span>
+                                    </div>
+                                    <div class="mb-2">
+                                        <strong><i class="fas fa-envelope me-1"></i> Email:</strong> 
+                                        <span id="datosEmail" class="text-muted">-</span>
+                                    </div>
+                                    <div class="mb-2">
+                                        <strong><i class="fas fa-briefcase me-1"></i> Cargo:</strong> 
+                                        <span id="datosCargo" class="text-muted">-</span>
+                                    </div>
+                                    <div class="mb-0">
+                                        <strong><i class="fas fa-user-tie me-1"></i> Supervisor:</strong> 
+                                        <span id="datosSupervisor" class="text-muted">-</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Resumen Estadístico -->
+                        <div class="section">
+                            <div class="data-card card">
+                                <div class="card-header">
+                                    <h5><i class="fas fa-chart-pie me-2"></i>Resumen</h5>
+                                </div>
+                                <div class="card-body">
+                                    <div class="row text-center">
+                                        <div class="col-4">
+                                            <div class="stats-card">
+                                                <i class="fas fa-clock text-warning" style="font-size: 1.5rem;"></i>
+                                                <h4 class="mt-2" id="totalPendientes">0</h4>
+                                                <small>Pendientes</small>
+                                            </div>
+                                        </div>
+                                        <div class="col-4">
+                                            <div class="stats-card">
+                                                <i class="fas fa-check-circle text-success" style="font-size: 1.5rem;"></i>
+                                                <h4 class="mt-2" id="totalAprobados">0</h4>
+                                                <small>Aprobados</small>
+                                            </div>
+                                        </div>
+                                        <div class="col-4">
+                                            <div class="stats-card">
+                                                <i class="fas fa-times-circle text-danger" style="font-size: 1.5rem;"></i>
+                                                <h4 class="mt-2" id="totalRechazados">0</h4>
+                                                <small>Rechazados</small>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Balance de Permisos -->
+                        <div class="section">
+                            <div class="data-card card">
+                                <div class="card-header">
+                                    <h5><i class="fas fa-balance-scale me-2"></i>Balance de Permisos</h5>
+                                </div>
+                                <div class="card-body" id="balancePermisos">
+                                    <div class="loading-spinner">
+                                        <div class="spinner-border text-primary" role="status">
+                                            <span class="visually-hidden">Cargando...</span>
+                                        </div>
+                                        <span class="ms-2">Cargando balance...</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Modal Nuevo Permiso -->
+    <div class="modal fade" id="modalNuevoPermiso" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="fas fa-plus me-2"></i>Nueva Solicitud de Permiso</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <form id="formNuevoPermiso">
+                    <div class="modal-body">
+                        <div id="alertaLimitesPermiso" class="alert d-none" role="alert"></div>
+                        
+                        <div class="edit-field">
+                            <label for="tipoPermiso" class="form-label">Tipo de Permiso</label>
+                            <select class="form-select" id="tipoPermiso" required>
+                                <option value="">Selecciona un tipo...</option>
+                            </select>
+                        </div>
+                        
+                        <div class="edit-field">
+                            <label for="fechaInicio" class="form-label">Fecha de Inicio</label>
+                            <input type="date" class="form-control" id="fechaInicio" required>
+                        </div>
+                        
+                        <div class="edit-field">
+                            <label for="fechaFin" class="form-label">Fecha de Fin</label>
+                            <input type="date" class="form-control" id="fechaFin" required>
+                        </div>
+                        
+                        <div class="edit-field">
+                            <label for="motivo" class="form-label">Motivo</label>
+                            <textarea class="form-control" id="motivo" rows="3" required placeholder="Describe el motivo de tu solicitud..."></textarea>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-paper-plane me-2"></i>Enviar Solicitud
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Modal Editar Datos -->
+    <div class="modal fade" id="modalEditarDatos" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="fas fa-user-edit me-2"></i>Editar Mis Datos</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <form id="formEditarDatos">
+                    <div class="modal-body">
+                        <div class="edit-field">
+                            <label for="editRut" class="form-label">RUT</label>
+                            <input type="text" class="form-control" id="editRut" readonly style="background-color: #f8f9fa; cursor: not-allowed;">
+                            <div class="form-text">El RUT no puede ser modificado</div>
+                        </div>
+                        
+                        <div class="edit-field">
+                            <label for="editEmail" class="form-label">Email</label>
+                            <input type="email" class="form-control" id="editEmail" required placeholder="usuario@ejemplo.com">
+                        </div>
+                        
+                        <div class="edit-field">
+                            <label for="editCargo" class="form-label">Cargo</label>
+                            <input type="text" class="form-control" id="editCargo" required placeholder="Tu cargo actual">
+                        </div>
+                        
+                        <div class="alert alert-info">
+                            <i class="fas fa-info-circle me-2"></i>
+                            <strong>Nota:</strong> El RUT y supervisor solo pueden ser modificados por un administrador.
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-save me-2"></i>Guardar Cambios
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // Variables globales
+        let empleadoInfo = null;
+        let tiposPermisosData = [];
+        let token = localStorage.getItem('auth_token');
+        let userData = JSON.parse(localStorage.getItem('user_data') || '{}');
+        let empleadoTemporal = null;
+        
+        // Inicialización de la aplicación
+        document.addEventListener('DOMContentLoaded', function() {
+            // Verificar si hay un token de reset en la URL
+            const urlParams = new URLSearchParams(window.location.search);
+            const resetToken = urlParams.get('reset');
+            
+            if (resetToken) {
+                // Validar token de reset
+                validarTokenReset(resetToken);
+                return;
+            }
+            
+            if (token && userData.nombre) {
+                mostrarDashboard();
+                cargarDashboardCompleto();
+            } else {
+                mostrarLogin();
+            }
+        });
+        
+        // === FUNCIONES DE NAVEGACIÓN ===
+        function mostrarLogin() {
+            ocultarTodasLasSecciones();
+            document.getElementById('loginSection').classList.remove('hidden');
+        }
+        
+        function mostrarImportarCSV() {
+            ocultarTodasLasSecciones();
+            document.getElementById('importarCSVSection').classList.remove('hidden');
+        }
+        
+        function mostrarCrearUsuario() {
+            ocultarTodasLasSecciones();
+            document.getElementById('crearUsuarioSection').classList.remove('hidden');
+        }
+        
+        function mostrarRecuperarPassword() {
+            ocultarTodasLasSecciones();
+            document.getElementById('recuperarPasswordSection').classList.remove('hidden');
+            // Resetear formularios
+            document.getElementById('formSolicitarRecuperacion').classList.remove('hidden');
+            document.getElementById('mensajeRecuperacionExito').classList.add('hidden');
+        }
+        
+        function mostrarRestablecerPassword(token) {
+            ocultarTodasLasSecciones();
+            document.getElementById('restablecerPasswordSection').classList.remove('hidden');
+            document.getElementById('tokenReset').value = token || '';
+        }
+        
+        function mostrarCrearPassword() {
+            ocultarTodasLasSecciones();
+            document.getElementById('crearPasswordSection').classList.remove('hidden');
+            document.getElementById('crearPasswordForm').classList.add('hidden');
+        }
+        
+        function mostrarDashboard() {
+            ocultarTodasLasSecciones();
+            document.getElementById('dashboardSection').classList.remove('hidden');
+            if (userData.nombre) {
+                document.getElementById('nombreEmpleado').textContent = userData.nombre;
+            }
+        }
+        
+        function ocultarTodasLasSecciones() {
+            document.getElementById('loginSection').classList.add('hidden');
+            document.getElementById('crearPasswordSection').classList.add('hidden');
+            document.getElementById('dashboardSection').classList.add('hidden');
+            document.getElementById('importarCSVSection').classList.add('hidden');
+            document.getElementById('crearUsuarioSection').classList.add('hidden');
+            document.getElementById('recuperarPasswordSection').classList.add('hidden');
+            document.getElementById('restablecerPasswordSection').classList.add('hidden');
+        }
+        
+        // === FUNCIONES DE AUTENTICACIÓN ===
+        
+        // Login de empleado
+        document.getElementById('loginForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const rut = document.getElementById('loginRut').value.trim();
+            const password = document.getElementById('loginPassword').value;
+            
+            if (!rut || !password) {
+                mostrarToast('error', 'RUT y contraseña son requeridos');
+                return;
+            }
+            
+            try {
+                const response = await fetch('/api/empleados-auth/login', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ rut, password })
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok && data.success) {
+                    // Guardar datos de sesión
+                    localStorage.setItem('auth_token', data.token);
+                    localStorage.setItem('user_data', JSON.stringify(data.empleado));
+                    
+                    token = data.token;
+                    userData = data.empleado;
+                    
+                    mostrarToast('success', `¡Bienvenido ${data.empleado.nombre}!`);
+                    
+                    setTimeout(() => {
+                        mostrarDashboard();
+                        cargarDashboardCompleto();
+                    }, 1000);
+                    
+                } else {
+                    throw new Error(data.error || 'Error en el login');
+                }
+                
+            } catch (error) {
+                mostrarToast('error', error.message);
+            }
+        });
+        
+        // Verificar RUT para crear contraseña
+        document.getElementById('verificarRutForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const rut = document.getElementById('verificarRut').value.trim();
+            
+            if (!rut) {
+                mostrarToast('error', 'RUT es requerido');
+                return;
+            }
+            
+            try {
+                const response = await fetch('/api/empleados-auth/verificar-rut', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ rut })
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok && data.empleado) {
+                    if (data.tienePassword) {
+                        mostrarToast('warning', 'Este empleado ya tiene una contraseña configurada. Usa el formulario de login.');
+                        setTimeout(mostrarLogin, 2000);
+                        return;
+                    }
+                    
+                    empleadoTemporal = data.empleado;
+                    document.getElementById('empleadoEncontrado').textContent = data.empleado.nombre;
+                    document.getElementById('verificarRutForm').classList.add('hidden');
+                    document.getElementById('crearPasswordForm').classList.remove('hidden');
+                    
+                } else {
+                    throw new Error(data.error || 'Empleado no encontrado');
+                }
+                
+            } catch (error) {
+                mostrarToast('error', error.message);
+            }
+        });
+        
+        // Crear contraseña
+        document.getElementById('crearPasswordForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const password = document.getElementById('nuevaPassword').value;
+            const confirmPassword = document.getElementById('confirmarPassword').value;
+            
+            if (!password || !confirmPassword) {
+                mostrarToast('error', 'Todos los campos son requeridos');
+                return;
+            }
+            
+            if (password !== confirmPassword) {
+                mostrarToast('error', 'Las contraseñas no coinciden');
+                return;
+            }
+            
+            if (password.length < 6) {
+                mostrarToast('error', 'La contraseña debe tener al menos 6 caracteres');
+                return;
+            }
+            
+            if (!empleadoTemporal) {
+                mostrarToast('error', 'Error: datos del empleado no encontrados');
+                return;
+            }
+            
+            try {
+                const response = await fetch('/api/empleados-auth/crear-password', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        empleadoId: empleadoTemporal.id,
+                        password: password,
+                        confirmPassword: confirmPassword
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok && data.success) {
+                    mostrarToast('success', 'Contraseña creada exitosamente. Ya puedes iniciar sesión.');
+                    
+                    // Limpiar formularios
+                    document.getElementById('verificarRutForm').reset();
+                    document.getElementById('crearPasswordForm').reset();
+                    empleadoTemporal = null;
+                    
+                    setTimeout(mostrarLogin, 2000);
+                    
+                } else {
+                    throw new Error(data.error || 'Error al crear la contraseña');
+                }
+                
+            } catch (error) {
+                mostrarToast('error', error.message);
+            }
+        });
+        
+        // === FUNCIONES DEL DASHBOARD ===
+        
+        async function cargarDashboardCompleto() {
+            try {
+                // Cargar datos del dashboard
+                await cargarDashboard();
+                
+                // Cargar solicitudes de permisos
+                await cargarSolicitudes();
+                
+                // Cargar tipos de permisos
+                await cargarTiposPermisos();
+                
+            } catch (error) {
+                console.error('Error cargando dashboard:', error);
+                mostrarToast('error', 'Error al cargar el dashboard');
+            }
+        }
+        
+        async function cargarDashboard() {
+            try {
+                const response = await fetch('/api/solicitudes-empleado/dashboard', {
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    empleadoInfo = data.empleado;
+                    actualizarBalancePermisos(empleadoInfo);
+                    mostrarDatosPersonales(empleadoInfo);
+                    return data;
+                } else {
+                    throw new Error(data.error || 'Error al cargar dashboard');
+                }
+                
+            } catch (error) {
+                console.error('Error:', error);
+                document.getElementById('balancePermisos').innerHTML = `
+                    <div class="alert alert-danger">
+                        <i class="fas fa-exclamation-triangle me-2"></i>
+                        Error al cargar balance: ${error.message}
+                    </div>
+                `;
+                return null;
+            }
+        }
+        
+        async function cargarSolicitudes() {
+            try {
+                const response = await fetch('/api/solicitudes-empleado/historial', {
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    mostrarSolicitudes(data.data || []);
+                    actualizarResumen(data.data || []);
+                } else {
+                    throw new Error(data.message || 'Error al cargar solicitudes');
+                }
+                
+            } catch (error) {
+                console.error('Error:', error);
+                document.getElementById('listaSolicitudes').innerHTML = `
+                    <div class="alert alert-danger">
+                        <i class="fas fa-exclamation-triangle me-2"></i>
+                        Error al cargar solicitudes: ${error.message}
+                    </div>
+                `;
+            }
+        }
+        
+        async function cargarTiposPermisos() {
+            try {
+                const response = await fetch('/api/solicitudes-empleado/tipos-permisos', {
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    tiposPermisosData = data || [];
+                    const select = document.getElementById('tipoPermiso');
+                    select.innerHTML = '<option value="">Selecciona un tipo...</option>';
+                    
+                    tiposPermisosData.forEach(tipo => {
+                        select.innerHTML += `<option value="${tipo.id}">${tipo.nombre} (${tipo.codigo})</option>`;
+                    });
+                }
+                
+            } catch (error) {
+                console.error('Error cargando tipos de permisos:', error);
+            }
+        }
+        
+        // === FUNCIONES DE VISUALIZACIÓN ===
+        
+        function mostrarDatosPersonales(empleado) {
+            if (!empleado) return;
+            
+            document.getElementById('datosRut').textContent = empleado.rut || '-';
+            document.getElementById('datosEmail').textContent = empleado.email || '-';
+            document.getElementById('datosCargo').textContent = empleado.cargo || '-';
+            document.getElementById('datosSupervisor').textContent = empleado.supervisor || 'Sin asignar';
+        }
+        
+        function mostrarSolicitudes(solicitudes) {
+            const container = document.getElementById('listaSolicitudes');
+            
+            if (solicitudes.length === 0) {
+                container.innerHTML = `
+                    <div class="text-center p-5">
+                        <i class="fas fa-inbox" style="font-size: 4rem; opacity: 0.3; color: #dee2e6;"></i>
+                        <h4 class="mt-3 text-muted">No tienes solicitudes aún</h4>
+                        <p class="text-muted">Crea tu primera solicitud de permiso</p>
+                        <button class="btn btn-primary" onclick="mostrarModalNuevoPermiso()">
+                            <i class="fas fa-plus me-2"></i>Crear primera solicitud
+                        </button>
+                    </div>
+                `;
+                return;
+            }
+            
+            const html = solicitudes.map(solicitud => {
+                const estado = solicitud.estado || 'PENDIENTE';
+                const statusClass = `status-${estado.toLowerCase()}`;
+                const statusIcon = {
+                    'PENDIENTE': 'clock text-warning',
+                    'APROBADO': 'check-circle text-success',
+                    'RECHAZADO': 'times-circle text-danger'
+                };
+                
+                // Extraer información de fechas de las observaciones para permisos históricos
+                let fechaInicio = solicitud.fecha_inicio;
+                let fechaFin = solicitud.fecha_fin;
+                let periodoTexto = '';
+                
+                if (solicitud.observaciones && solicitud.observaciones.includes('Permiso histórico importado desde CSV')) {
+                    // Extraer mes de las observaciones
+                    const mesMatch = solicitud.observaciones.match(/Mes: ([A-Z]+)/);
+                    if (mesMatch) {
+                        const mesNombre = mesMatch[1];
+                        const meses = {
+                            'ENERO': '01', 'FEBRERO': '02', 'MARZO': '03', 'ABRIL': '04',
+                            'MAYO': '05', 'JUNIO': '06', 'JULIO': '07', 'AGOSTO': '08',
+                            'SEPTIEMBRE': '09', 'OCTUBRE': '10', 'NOVIEMBRE': '11', 'DICIEMBRE': '12'
+                        };
+                        
+                        if (meses[mesNombre]) {
+                            const año = '2025'; // Año por defecto para permisos históricos
+                            periodoTexto = `${mesNombre} ${año}`;
+                        } else {
+                            periodoTexto = mesNombre;
+                        }
+                    } else {
+                        periodoTexto = 'Período histórico';
+                    }
+                } else if (fechaInicio && fechaFin && fechaInicio !== 'undefined' && fechaFin !== 'undefined') {
+                    periodoTexto = `${fechaInicio} al ${fechaFin}`;
+                } else if (fechaInicio && fechaInicio !== 'undefined') {
+                    periodoTexto = `Desde ${fechaInicio}`;
+                } else {
+                    periodoTexto = 'Fechas no especificadas';
+                }
+                
+                // Determinar si mostrar observaciones completas o resumidas
+                let observacionesHTML = '';
+                if (solicitud.observaciones) {
+                    if (solicitud.observaciones.includes('Permiso histórico importado desde CSV')) {
+                        // Para permisos históricos, mostrar solo información relevante
+                        const mesMatch = solicitud.observaciones.match(/Mes: ([A-Z]+)/);
+                        if (mesMatch) {
+                            observacionesHTML = `
+                                <p class="card-text mb-0">
+                                    <small class="text-muted">
+                                        <i class="fas fa-history me-1"></i>
+                                        <strong>Permiso histórico:</strong> ${mesMatch[1]} 2025
+                                    </small>
+                                </p>
+                            `;
+                        } else {
+                            observacionesHTML = `
+                                <p class="card-text mb-0">
+                                    <small class="text-muted">
+                                        <i class="fas fa-history me-1"></i>
+                                        <strong>Permiso histórico importado</strong>
+                                    </small>
+                                </p>
+                            `;
+                        }
+                    } else {
+                        // Para permisos normales, mostrar observaciones completas
+                        observacionesHTML = `
+                            <p class="card-text mb-0">
+                                <small class="text-muted">
+                                    <strong><i class="fas fa-sticky-note me-1"></i> Observaciones:</strong> 
+                                    ${solicitud.observaciones}
+                                </small>
+                            </p>
+                        `;
+                    }
+                }
+                
+                return `
+                    <div class="permiso-card card ${statusClass}">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between align-items-start">
+                                <div class="flex-grow-1">
+                                    <h6 class="card-title mb-2">
+                                        <i class="fas fa-calendar-alt me-2"></i>
+                                        ${solicitud.tipo_permiso_nombre || 'Tipo no definido'}
+                                    </h6>
+                                    <p class="card-text text-muted mb-2">
+                                        <strong><i class="fas fa-calendar me-1"></i> Período:</strong> 
+                                        ${periodoTexto}
+                                    </p>
+                                    <p class="card-text mb-2">
+                                        <strong><i class="fas fa-comment me-1"></i> Motivo:</strong> 
+                                        ${solicitud.motivo || 'No especificado'}
+                                    </p>
+                                    ${observacionesHTML}
+                                </div>
+                                <div class="text-end ms-3">
+                                    <span class="badge bg-${estado === 'APROBADO' ? 'success' : estado === 'RECHAZADO' ? 'danger' : 'warning'} mb-2">
+                                        <i class="fas fa-${statusIcon[estado]} me-1"></i> ${estado}
+                                    </span>
+                                    <br>
+                                    <small class="text-muted">
+                                        <i class="fas fa-clock me-1"></i>
+                                        ${new Date(solicitud.created_at).toLocaleDateString('es-ES')}
+                                    </small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+            
+            container.innerHTML = html;
+        }
+        
+        function actualizarResumen(solicitudes) {
+            const pendientes = solicitudes.filter(s => s.estado === 'PENDIENTE').length;
+            const aprobados = solicitudes.filter(s => s.estado === 'APROBADO').length;
+            const rechazados = solicitudes.filter(s => s.estado === 'RECHAZADO').length;
+            
+            document.getElementById('totalPendientes').textContent = pendientes;
+            document.getElementById('totalAprobados').textContent = aprobados;
+            document.getElementById('totalRechazados').textContent = rechazados;
+        }
+        
+        function actualizarBalancePermisos(empleado) {
+            if (!empleado) return;
+            
+            const tieneNegociacionColectiva = empleado.negociacion_colectiva === 1;
+            const uso1Semestre = empleado.uso_primer_semestre || 0;
+            const uso2Semestre = empleado.uso_segundo_semestre || 0;
+            const usoTotal = uso1Semestre + uso2Semestre;
+            
+            let html = `
+                <div class="mb-3">
+                    <h6><i class="fas fa-info-circle me-2"></i>Tu situación:</h6>
+                    <p class="mb-2">
+                        <strong>Negociación Colectiva:</strong> 
+                        <span class="badge ${tieneNegociacionColectiva ? 'bg-success' : 'bg-secondary'}">${tieneNegociacionColectiva ? 'SÍ' : 'NO'}</span>
+                    </p>
+                </div>
+            `;
+            
+            if (tieneNegociacionColectiva) {
+                // Mostrar balance anual total
+                const limiteTotal = 6.0;
+                const disponible = Math.max(0, limiteTotal - usoTotal);
+                
+                html += `
+                    <div class="balance-card">
+                        <i class="fas fa-balance-scale text-info" style="font-size: 3rem;"></i>
+                        <h3 class="mt-3 ${disponible === 0 ? 'text-danger' : disponible <= 1 ? 'text-warning' : 'text-success'}">${disponible}</h3>
+                        <p class="mb-1"><strong>Permisos disponibles</strong></p>
+                        <p class="text-muted mb-0">de ${limiteTotal} anuales totales</p>
+                        <hr>
+                        <p class="mb-0"><strong>Uso actual:</strong> ${usoTotal} permisos</p>
+                        <small class="text-info">
+                            <i class="fas fa-info-circle me-1"></i>
+                            T = 1 permiso, AM/PM = 0.5 permisos c/u
+                        </small>
+                    </div>
+                `;
+            } else {
+                // Mostrar balance semestral
+                const limiteSemestral = 3.0;
+                const disponible1 = Math.max(0, limiteSemestral - uso1Semestre);
+                const disponible2 = Math.max(0, limiteSemestral - uso2Semestre);
+                
+                html += `
+                    <div class="mb-3">
+                        <h6><i class="fas fa-calendar-alt me-2"></i>1° Semestre (Ene - Jun)</h6>
+                        <div class="balance-card">
+                            <h4 class="${disponible1 === 0 ? 'text-danger' : disponible1 <= 0.5 ? 'text-warning' : 'text-success'}">${disponible1}</h4>
+                            <small>Disponibles | Usados: ${uso1Semestre}</small>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <h6><i class="fas fa-calendar-alt me-2"></i>2° Semestre (Jul - Dic)</h6>
+                        <div class="balance-card">
+                            <h4 class="${disponible2 === 0 ? 'text-danger' : disponible2 <= 0.5 ? 'text-warning' : 'text-success'}">${disponible2}</h4>
+                            <small>Disponibles | Usados: ${uso2Semestre}</small>
+                        </div>
+                    </div>
+                    <div class="text-center">
+                        <small class="text-muted">Límite: ${limiteSemestral} permisos/semestre</small>
+                        <br><small class="text-info">T = 1 permiso, AM/PM = 0.5 c/u</small>
+                    </div>
+                `;
+            }
+            
+            document.getElementById('balancePermisos').innerHTML = html;
+        }
+        
+        // === FUNCIONES DE MODALES ===
+        
+        function mostrarModalNuevoPermiso() {
+            const modal = new bootstrap.Modal(document.getElementById('modalNuevoPermiso'));
+            modal.show();
+            
+            // Limpiar alerta de límites
+            document.getElementById('alertaLimitesPermiso').className = 'alert d-none';
+        }
+        
+        function mostrarModalEditarDatos() {
+            if (empleadoInfo) {
+                // Solo mostrar el RUT como información, no editable
+                document.getElementById('editRut').value = empleadoInfo.rut || '';
+                document.getElementById('editEmail').value = empleadoInfo.email || '';
+                document.getElementById('editCargo').value = empleadoInfo.cargo || '';
+            }
+            
+            const modal = new bootstrap.Modal(document.getElementById('modalEditarDatos'));
+            modal.show();
+        }
+        
+        // === FORMULARIOS ===
+        
+        // Nuevo permiso
+        document.getElementById('formNuevoPermiso').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const formData = {
+                tipo_permiso_id: document.getElementById('tipoPermiso').value,
+                fecha_inicio: document.getElementById('fechaInicio').value,
+                fecha_fin: document.getElementById('fechaFin').value,
+                motivo: document.getElementById('motivo').value
+            };
+            
+            if (!formData.tipo_permiso_id || !formData.fecha_inicio || !formData.fecha_fin || !formData.motivo) {
+                mostrarToast('error', 'Todos los campos son requeridos');
+                return;
+            }
+            
+            try {
+                const response = await fetch('/api/solicitudes-empleado/crear', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify(formData)
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    bootstrap.Modal.getInstance(document.getElementById('modalNuevoPermiso')).hide();
+                    document.getElementById('formNuevoPermiso').reset();
+                    
+                    mostrarToast('success', 'Solicitud de permiso creada exitosamente');
+                    
+                    // Recargar datos
+                    await cargarSolicitudes();
+                    await cargarDashboard();
+                    
+                } else {
+                    throw new Error(data.message || 'Error al crear la solicitud');
+                }
+                
+            } catch (error) {
+                mostrarToast('error', error.message);
+            }
+        });
+        
+        // Editar datos
+        document.getElementById('formEditarDatos').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const formData = {
+                email: document.getElementById('editEmail').value.trim(),
+                cargo: document.getElementById('editCargo').value.trim()
+            };
+            
+            if (!formData.email || !formData.cargo) {
+                mostrarToast('error', 'Email y cargo son requeridos');
+                return;
+            }
+            
+            // Validar formato de email
+            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+            if (!emailRegex.test(formData.email)) {
+                mostrarToast('error', 'Formato de email inválido');
+                return;
+            }
+            
+            try {
+                const response = await fetch('/api/empleados-auth/actualizar-datos', {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify(formData)
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok && data.success) {
+                    bootstrap.Modal.getInstance(document.getElementById('modalEditarDatos')).hide();
+                    
+                    // Actualizar datos locales (manteniendo el RUT original)
+                    empleadoInfo = { ...empleadoInfo, ...formData };
+                    mostrarDatosPersonales(empleadoInfo);
+                    
+                    // Actualizar localStorage (manteniendo el RUT original)
+                    const currentUserData = JSON.parse(localStorage.getItem('user_data') || '{}');
+                    localStorage.setItem('user_data', JSON.stringify({
+                        ...currentUserData,
+                        email: formData.email,
+                        cargo: formData.cargo
+                    }));
+                    
+                    mostrarToast('success', 'Datos actualizados correctamente');
+                    
+                } else {
+                    throw new Error(data.error || 'Error al actualizar los datos');
+                }
+                
+            } catch (error) {
+                mostrarToast('error', error.message);
+            }
+        });
+        
+        // === FUNCIONES DE VALIDACIÓN ===
+        
+        // Validar límites de permisos
+        async function validarLimites() {
+            const tipoPermisoSelect = document.getElementById('tipoPermiso');
+            const fechaInicio = document.getElementById('fechaInicio').value;
+            const alertDiv = document.getElementById('alertaLimitesPermiso');
+            
+            if (!tipoPermisoSelect.value || !fechaInicio || !empleadoInfo || !tiposPermisosData.length) {
+                alertDiv.className = 'alert d-none';
+                return true;
+            }
+            
+            // Encontrar el código del tipo de permiso seleccionado
+            const tipoSeleccionado = tiposPermisosData.find(t => t.id == tipoPermisoSelect.value);
+            if (!tipoSeleccionado) return true;
+            
+            const codigoPermiso = tipoSeleccionado.codigo;
+            
+            // Los permisos C y S no tienen límites
+            if (['C', 'S'].includes(codigoPermiso)) {
+                alertDiv.className = 'alert alert-info d-block';
+                alertDiv.innerHTML = `
+                    <i class="fas fa-info-circle me-2"></i>
+                    Los permisos de ${tipoSeleccionado.nombre} no cuentan para límites administrativos.
+                `;
+                return true;
+            }
+            
+            // Solo validar T, AM, PM
+            if (!['T', 'AM', 'PM'].includes(codigoPermiso)) {
+                alertDiv.className = 'alert d-none';
+                return true;
+            }
+            
+            // Validar límites
+            const tieneNegociacionColectiva = empleadoInfo.negociacion_colectiva === 1;
+            const uso1Semestre = empleadoInfo.uso_primer_semestre || 0;
+            const uso2Semestre = empleadoInfo.uso_segundo_semestre || 0;
+            const fechaPermisoObj = new Date(fechaInicio);
+            const mes = fechaPermisoObj.getMonth() + 1;
+            const esPrimerSemestre = mes <= 6;
+            
+            let disponible, periodo;
+            const valorPermiso = codigoPermiso === 'T' ? 1.0 : 0.5;
+            
+            if (tieneNegociacionColectiva) {
+                const usoTotal = uso1Semestre + uso2Semestre;
+                disponible = 6.0 - usoTotal;
+                periodo = 'año';
+            } else {
+                const usoSemestre = esPrimerSemestre ? uso1Semestre : uso2Semestre;
+                disponible = 3.0 - usoSemestre;
+                periodo = esPrimerSemestre ? 'primer semestre' : 'segundo semestre';
+            }
+            
+            if (valorPermiso > disponible) {
+                alertDiv.className = 'alert alert-danger d-block';
+                alertDiv.innerHTML = `
+                    <i class="fas fa-exclamation-triangle me-2"></i>
+                    <strong>¡Límite excedido!</strong> Este permiso ${codigoPermiso} (valor ${valorPermiso}) excedería tu límite. 
+                    Solo tienes ${disponible} permisos disponibles para el ${periodo}.
+                `;
+                return false;
+            } else if (disponible - valorPermiso <= 0.5) {
+                alertDiv.className = 'alert alert-warning d-block';
+                alertDiv.innerHTML = `
+                    <i class="fas fa-exclamation-triangle me-2"></i>
+                    <strong>¡Atención!</strong> Después de este permiso ${codigoPermiso} te quedarán ${disponible - valorPermiso} permisos disponibles para el ${periodo}.
+                `;
+                return true;
+            } else {
+                alertDiv.className = 'alert alert-success d-block';
+                alertDiv.innerHTML = `
+                    <i class="fas fa-check-circle me-2"></i>
+                    Permiso ${codigoPermiso} válido. Después de este permiso te quedarán ${disponible - valorPermiso} permisos disponibles para el ${periodo}.
+                `;
+                return true;
+            }
+        }
+        
+        // Event listeners para validación de límites
+        document.getElementById('tipoPermiso').addEventListener('change', validarLimites);
+        document.getElementById('fechaInicio').addEventListener('change', validarLimites);
+        
+        // === FUNCIONES AUXILIARES ===
+        
+        function mostrarToast(tipo, mensaje) {
+            const toastContainer = document.getElementById('toastContainer');
+            const toastId = 'toast-' + Date.now();
+            
+            const toastHtml = `
+                <div id="${toastId}" class="toast show" role="alert" aria-live="assertive" aria-atomic="true">
+                    <div class="toast-header">
+                        <i class="fas fa-${tipo === 'success' ? 'check-circle text-success' : tipo === 'warning' ? 'exclamation-triangle text-warning' : 'exclamation-circle text-danger'} me-2"></i>
+                        <strong class="me-auto">${tipo === 'success' ? 'Éxito' : tipo === 'warning' ? 'Aviso' : 'Error'}</strong>
+                        <button type="button" class="btn-close" data-bs-dismiss="toast"></button>
+                    </div>
+                    <div class="toast-body">
+                        ${mensaje}
+                    </div>
+                </div>
+            `;
+            
+            toastContainer.insertAdjacentHTML('beforeend', toastHtml);
+            
+            // Auto-remove after 5 seconds
+            setTimeout(() => {
+                const toastElement = document.getElementById(toastId);
+                if (toastElement) {
+                    toastElement.remove();
+                }
+            }, 5000);
+        }
+        
+        function actualizarDashboard() {
+            mostrarToast('info', 'Actualizando dashboard...');
+            cargarDashboardCompleto();
+        }
+        
+        function cerrarSesion() {
+            localStorage.clear();
+            sessionStorage.clear();
+            token = null;
+            userData = {};
+            empleadoInfo = null;
+            tiposPermisosData = [];
+            empleadoTemporal = null;
+            
+            mostrarToast('success', 'Sesión cerrada correctamente');
+            setTimeout(mostrarLogin, 1000);
+        }
+        
+        // === FUNCIONES PARA CSV ===
+        
+        let datosCSV = [];
+        
+        // Event listener para archivo CSV
+        document.getElementById('archivoCSV').addEventListener('change', function(e) {
+            const archivo = e.target.files[0];
+            if (archivo && archivo.type === 'text/csv') {
+                leerArchivoCSV(archivo);
+            } else {
+                mostrarToast('error', 'Por favor selecciona un archivo CSV válido');
+            }
+        });
+        
+        function leerArchivoCSV(archivo) {
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const contenido = e.target.result;
+                procesarContenidoCSV(contenido);
+            };
+            reader.readAsText(archivo);
+        }
+        
+        function procesarContenidoCSV(contenido) {
+            const lineas = contenido.split('\n');
+            const empleados = [];
+            
+            // Buscar la línea de encabezados (línea 6 según el formato)
+            let indiceEncabezados = -1;
+            for (let i = 0; i < lineas.length; i++) {
+                if (lineas[i].includes('Colaborador - Nombre Completo')) {
+                    indiceEncabezados = i;
+                    break;
+                }
+            }
+            
+            if (indiceEncabezados === -1) {
+                mostrarToast('error', 'No se encontraron los encabezados esperados en el CSV');
+                return;
+            }
+            
+            // Procesar datos desde la línea siguiente a los encabezados
+            for (let i = indiceEncabezados + 1; i < lineas.length; i++) {
+                const linea = lineas[i].trim();
+                if (linea === '') continue;
+                
+                const campos = linea.split(';');
+                if (campos.length >= 9) {
+                    const empleado = {
+                        nombre: campos[0].trim(),
+                        rut: campos[1].trim(),
+                        email: campos[2].trim(),
+                        fechaNacimiento: formatearFecha(campos[3].trim()),
+                        fechaIngreso: formatearFecha(campos[4].trim()),
+                        fechaTermino: formatearFecha(campos[5].trim()) || null,
+                        horasSemanales: parseInt(campos[6].trim()) || 44,
+                        supervisor: campos[7].trim(),
+                        cargo: campos[8].trim()
+                    };
+                    
+                    if (empleado.nombre && empleado.rut) {
+                        empleados.push(empleado);
+                    }
+                }
+            }
+            
+            if (empleados.length > 0) {
+                datosCSV = empleados;
+                mostrarPreviewCSV(empleados);
+                document.getElementById('btnProcesarCSV').disabled = false;
+            } else {
+                mostrarToast('error', 'No se encontraron datos válidos en el CSV');
+            }
+        }
+        
+        function formatearFecha(fechaStr) {
+            if (!fechaStr || fechaStr.trim() === '') return null;
+            
+            // Convertir formato DD/MM/YYYY a YYYY-MM-DD
+            const partes = fechaStr.split('/');
+            if (partes.length === 3) {
+                const [dia, mes, año] = partes;
+                return `${año}-${mes.padStart(2, '0')}-${dia.padStart(2, '0')}`;
+            }
+            
+            return fechaStr;
+        }
+        
+        function mostrarPreviewCSV(empleados) {
+            const preview = document.getElementById('previewCSV');
+            const tabla = document.getElementById('tablaPreview');
+            const tbody = tabla.querySelector('tbody');
+            const thead = tabla.querySelector('thead');
+            
+            // Crear encabezados
+            thead.innerHTML = `
+                <tr>
+                    <th>Nombre</th>
+                    <th>RUT</th>
+                    <th>Email</th>
+                    <th>Cargo</th>
+                    <th>Supervisor</th>
+                </tr>
+            `;
+            
+            // Mostrar primeros 5 empleados
+            tbody.innerHTML = empleados.slice(0, 5).map(emp => `
+                <tr>
+                    <td>${emp.nombre}</td>
+                    <td>${emp.rut}</td>
+                    <td>${emp.email}</td>
+                    <td>${emp.cargo}</td>
+                    <td>${emp.supervisor}</td>
+                </tr>
+            `).join('');
+            
+            document.getElementById('totalRegistros').textContent = empleados.length;
+            preview.classList.remove('d-none');
+        }
+        
+        async function procesarCSV() {
+            if (datosCSV.length === 0) {
+                mostrarToast('error', 'No hay datos para procesar');
+                return;
+            }
+            
+            mostrarToast('info', `Procesando ${datosCSV.length} empleados...`);
+            
+            const btnProcesar = document.getElementById('btnProcesarCSV');
+            btnProcesar.disabled = true;
+            btnProcesar.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Procesando...';
+            
+            let procesados = 0;
+            let errores = 0;
+            
+            for (const empleado of datosCSV) {
+                try {
+                    const response = await fetch('/api/admin/empleado', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify(empleado)
+                    });
+                    
+                    if (response.ok) {
+                        procesados++;
+                    } else {
+                        errores++;
+                        console.error(`Error procesando ${empleado.nombre}:`, await response.text());
+                    }
+                } catch (error) {
+                    errores++;
+                    console.error(`Error procesando ${empleado.nombre}:`, error);
+                }
+            }
+            
+            btnProcesar.disabled = false;
+            btnProcesar.innerHTML = '<i class="fas fa-database me-2"></i>Importar a la Base de Datos';
+            
+            if (errores === 0) {
+                mostrarToast('success', `${procesados} empleados importados exitosamente`);
+                setTimeout(mostrarLogin, 2000);
+            } else {
+                mostrarToast('warning', `${procesados} procesados exitosamente, ${errores} con errores`);
+            }
+        }
+        
+        // === FUNCIONES PARA RECUPERAR CONTRASEÑA ===
+        
+        // Validar token de reset
+        async function validarTokenReset(token) {
+            try {
+                const response = await fetch(`/api/empleados-auth/validar-token-reset/${token}`);
+                const data = await response.json();
+                
+                if (response.ok && data.success) {
+                    mostrarRestablecerPassword(token);
+                    mostrarToast('info', `Restableciendo contraseña para ${data.empleado.nombre}`);
+                } else {
+                    mostrarLogin();
+                    mostrarToast('error', data.error || 'Token de recuperación inválido o expirado');
+                }
+            } catch (error) {
+                mostrarLogin();
+                mostrarToast('error', 'Error validando el token de recuperación');
+            }
+        }
+        
+        // Solicitar recuperación de contraseña
+        document.getElementById('formSolicitarRecuperacion').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const rut = document.getElementById('rutRecuperacion').value.trim();
+            const email = document.getElementById('emailRecuperacion').value.trim();
+            
+            if (!rut || !email) {
+                mostrarToast('error', 'RUT y email son requeridos');
+                return;
+            }
+            
+            // Validar formato de email
+            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+            if (!emailRegex.test(email)) {
+                mostrarToast('error', 'Formato de email inválido');
+                return;
+            }
+            
+            try {
+                const response = await fetch('/api/empleados-auth/solicitar-reset', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ rut, email })
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok && data.success) {
+                    // Mostrar mensaje de éxito
+                    document.getElementById('formSolicitarRecuperacion').classList.add('hidden');
+                    document.getElementById('mensajeRecuperacionExito').classList.remove('hidden');
+                    
+                    mostrarToast('success', 'Enlace de recuperación enviado a tu email');
+                    
+                } else {
+                    throw new Error(data.error || 'Error al solicitar recuperación');
+                }
+                
+            } catch (error) {
+                mostrarToast('error', error.message);
+            }
+        });
+        
+        // Restablecer contraseña
+        document.getElementById('formRestablecerPassword').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const token = document.getElementById('tokenReset').value;
+            const password = document.getElementById('nuevaPasswordReset').value;
+            const confirmPassword = document.getElementById('confirmarPasswordReset').value;
+            
+            if (!token || !password || !confirmPassword) {
+                mostrarToast('error', 'Todos los campos son requeridos');
+                return;
+            }
+            
+            if (password !== confirmPassword) {
+                mostrarToast('error', 'Las contraseñas no coinciden');
+                return;
+            }
+            
+            if (password.length < 6) {
+                mostrarToast('error', 'La contraseña debe tener al menos 6 caracteres');
+                return;
+            }
+            
+            try {
+                const response = await fetch('/api/empleados-auth/reset-password', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ token, password, confirmPassword })
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok && data.success) {
+                    mostrarToast('success', 'Contraseña restablecida exitosamente. Ya puedes iniciar sesión.');
+                    
+                    // Limpiar formulario y redirigir al login
+                    document.getElementById('formRestablecerPassword').reset();
+                    
+                    // Limpiar URL
+                    window.history.replaceState({}, document.title, window.location.pathname);
+                    
+                    setTimeout(mostrarLogin, 2000);
+                    
+                } else {
+                    throw new Error(data.error || 'Error al restablecer la contraseña');
+                }
+                
+            } catch (error) {
+                mostrarToast('error', error.message);
+            }
+        });
+        
+        // === FUNCIONES PARA CREAR USUARIO ===
+        
+        document.getElementById('formCrearUsuario').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const empleadoData = {
+                nombre: document.getElementById('nuevoNombre').value.trim(),
+                rut: document.getElementById('nuevoRut').value.trim(),
+                email: document.getElementById('nuevoEmail').value.trim(),
+                cargo: document.getElementById('nuevoCargo').value.trim(),
+                fechaNacimiento: document.getElementById('fechaNacimiento').value || null,
+                fechaIngreso: document.getElementById('fechaIngreso').value || null,
+                horasSemanales: parseInt(document.getElementById('horasSemanales').value) || 44,
+                supervisor: document.getElementById('supervisor').value.trim() || null
+            };
+            
+            // Validaciones básicas
+            if (!empleadoData.nombre || !empleadoData.rut || !empleadoData.email || !empleadoData.cargo) {
+                mostrarToast('error', 'Nombre, RUT, email y cargo son campos obligatorios');
+                return;
+            }
+            
+            // Validar formato de email
+            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+            if (!emailRegex.test(empleadoData.email)) {
+                mostrarToast('error', 'Formato de email inválido');
+                return;
+            }
+            
+            try {
+                const response = await fetch('/api/admin/empleado', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(empleadoData)
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok && data.success) {
+                    mostrarToast('success', `Empleado ${empleadoData.nombre} creado exitosamente`);
+                    document.getElementById('formCrearUsuario').reset();
+                    document.getElementById('horasSemanales').value = '44'; // Resetear valor por defecto
+                    setTimeout(mostrarLogin, 2000);
+                } else {
+                    throw new Error(data.error || 'Error al crear el empleado');
+                }
+                
+            } catch (error) {
+                mostrarToast('error', error.message);
+            }
+        });
+    </script>
+</body>
+</html>

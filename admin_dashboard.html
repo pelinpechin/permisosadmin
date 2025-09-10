@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard - Administrador</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg navbar-dark bg-success">
+        <div class="container">
+            <span class="navbar-brand">
+                <i class="fas fa-shield-alt me-2"></i>Panel Administrador
+            </span>
+            <div class="navbar-nav ms-auto">
+                <span class="nav-link text-white" id="userName">Cargando...</span>
+                <button class="btn btn-outline-light btn-sm" onclick="logout()">
+                    <i class="fas fa-sign-out-alt"></i> Salir
+                </button>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container mt-4">
+        <div class="row">
+            <div class="col-md-12">
+                <!-- Filtros -->
+                <div class="card mb-3">
+                    <div class="card-body">
+                        <h6 class="card-title">Filtros</h6>
+                        <div class="row">
+                            <div class="col-md-3">
+                                <select class="form-select" id="filtroEstado" onchange="cargarPermisos()">
+                                    <option value="">Todos los estados</option>
+                                    <option value="PENDIENTE">Pendientes</option>
+                                    <option value="APROBADO">Aprobados</option>
+                                    <option value="RECHAZADO">Rechazados</option>
+                                </select>
+                            </div>
+                            <div class="col-md-3">
+                                <input type="text" class="form-control" id="filtroEmpleado" 
+                                       placeholder="Buscar empleado..." onkeyup="filtrarTabla()">
+                            </div>
+                            <div class="col-md-3">
+                                <button class="btn btn-primary" onclick="cargarPermisos()">
+                                    <i class="fas fa-sync-alt"></i> Actualizar
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Tabla de permisos -->
+                <div class="card">
+                    <div class="card-body">
+                        <h5 class="card-title">
+                            <i class="fas fa-list me-2"></i>Todos los Permisos
+                        </h5>
+                        
+                        <div class="table-responsive">
+                            <table class="table table-striped" id="tablaPermisos">
+                                <thead>
+                                    <tr>
+                                        <th>ID</th>
+                                        <th>Empleado</th>
+                                        <th>Tipo</th>
+                                        <th>Fecha</th>
+                                        <th>Motivo</th>
+                                        <th>Estado</th>
+                                        <th>Solicitado</th>
+                                        <th>Acciones</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="permisosTable">
+                                    <tr>
+                                        <td colspan="8" class="text-center">
+                                            <i class="fas fa-spinner fa-spin"></i> Cargando permisos...
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // Verificar autenticación
+        const token = localStorage.getItem('auth_token');
+        const userType = localStorage.getItem('user_type');
+        const userData = JSON.parse(localStorage.getItem('user_data') || '{}');
+
+        if (!token || userType !== 'admin') {
+            window.location.href = '/login_simple.html';
+        }
+
+        // Mostrar nombre de usuario
+        document.getElementById('userName').textContent = userData.nombre || 'Administrador';
+
+        // Cargar permisos al iniciar
+        document.addEventListener('DOMContentLoaded', function() {
+            cargarPermisos();
+        });
+
+        let todosLosPermisos = [];
+
+        async function cargarPermisos() {
+            try {
+                const estado = document.getElementById('filtroEstado').value;
+                let url = '/api/admin/permisos';
+                if (estado) {
+                    url += `?estado=${estado}`;
+                }
+
+                const response = await fetch(url, {
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+                    todosLosPermisos = data;
+                    mostrarPermisos(data);
+                } else {
+                    throw new Error('Error al cargar permisos');
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                document.getElementById('permisosTable').innerHTML = `
+                    <tr><td colspan="8" class="text-center text-danger">
+                        Error al cargar permisos. <a href="#" onclick="cargarPermisos()">Reintentar</a>
+                    </td></tr>
+                `;
+            }
+        }
+
+        function mostrarPermisos(permisos) {
+            const tbody = document.getElementById('permisosTable');
+            
+            if (permisos.length === 0) {
+                tbody.innerHTML = `
+                    <tr><td colspan="8" class="text-center text-muted">
+                        No hay permisos para mostrar
+                    </td></tr>
+                `;
+                return;
+            }
+
+            tbody.innerHTML = permisos.map(permiso => {
+                const estadoClass = {
+                    'PENDIENTE': 'warning',
+                    'APROBADO': 'success',
+                    'RECHAZADO': 'danger'
+                }[permiso.estado] || 'secondary';
+
+                const acciones = permiso.estado === 'PENDIENTE' ? `
+                    <button class="btn btn-sm btn-success me-1" onclick="cambiarEstado(${permiso.id}, 'APROBADO')" title="Aprobar">
+                        <i class="fas fa-check"></i>
+                    </button>
+                    <button class="btn btn-sm btn-danger" onclick="cambiarEstado(${permiso.id}, 'RECHAZADO')" title="Rechazar">
+                        <i class="fas fa-times"></i>
+                    </button>
+                ` : `<span class="text-muted">-</span>`;
+
+                return `
+                    <tr>
+                        <td>${permiso.id}</td>
+                        <td>${permiso.empleado_nombre}</td>
+                        <td>${permiso.tipo_permiso}</td>
+                        <td>${new Date(permiso.fecha_desde).toLocaleDateString('es-CL')}</td>
+                        <td title="${permiso.motivo}">${permiso.motivo.substring(0, 50)}${permiso.motivo.length > 50 ? '...' : ''}</td>
+                        <td><span class="badge bg-${estadoClass}">${permiso.estado}</span></td>
+                        <td>${new Date(permiso.created_at).toLocaleDateString('es-CL')}</td>
+                        <td>${acciones}</td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        function filtrarTabla() {
+            const filtro = document.getElementById('filtroEmpleado').value.toLowerCase();
+            const permisosFiltrados = todosLosPermisos.filter(permiso => 
+                permiso.empleado_nombre.toLowerCase().includes(filtro)
+            );
+            mostrarPermisos(permisosFiltrados);
+        }
+
+        async function cambiarEstado(id, nuevoEstado) {
+            const accion = nuevoEstado === 'APROBADO' ? 'aprobar' : 'rechazar';
+            
+            if (!confirm(`¿Seguro que quieres ${accion} esta solicitud?`)) {
+                return;
+            }
+
+            try {
+                const response = await fetch(`/api/admin/permisos/${id}`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify({
+                        estado: nuevoEstado,
+                        observaciones: `${nuevoEstado.toLowerCase()} por administrador`
+                    })
+                });
+
+                if (response.ok) {
+                    alert(`Solicitud ${nuevoEstado.toLowerCase()} exitosamente`);
+                    cargarPermisos(); // Recargar tabla
+                } else {
+                    const error = await response.json();
+                    alert('Error: ' + (error.error || 'No se pudo actualizar'));
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                alert('Error de conexión');
+            }
+        }
+
+        function logout() {
+            if (confirm('¿Seguro que quieres salir?')) {
+                localStorage.clear();
+                sessionStorage.clear();
+                window.location.href = '/login_simple.html';
+            }
+        }
+    </script>
+</body>
+</html>

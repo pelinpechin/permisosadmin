@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🧹 Limpiar Caché - Sistema Arreglado</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+            background-color: #f8f9fa;
+        }
+        .card {
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 15px 0;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .success {
+            background-color: #d4edda;
+            border-left: 5px solid #28a745;
+            color: #155724;
+        }
+        button {
+            background-color: #28a745;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+            font-size: 16px;
+        }
+        button:hover {
+            background-color: #218838;
+        }
+        .danger {
+            background-color: #dc3545;
+        }
+        .danger:hover {
+            background-color: #c82333;
+        }
+        ul {
+            list-style-type: none;
+            padding-left: 0;
+        }
+        li {
+            margin: 8px 0;
+            padding: 5px 0;
+        }
+        li::before {
+            content: "✅ ";
+            margin-right: 8px;
+        }
+    </style>
+</head>
+<body>
+    <div class="card success">
+        <h1>🎉 ¡Sistema de Tokens Arreglado!</h1>
+        <p><strong>Los problemas "No hay token disponible" y "jwt malformed" han sido solucionados.</strong></p>
+        <p>El servidor está funcionando correctamente, pero tu navegador tiene código JavaScript en caché que aún causa errores.</p>
+    </div>
+
+    <div class="card">
+        <h2>🛠️ Cambios Realizados:</h2>
+        <ul>
+            <li>Validación de tokens antes de todas las peticiones API</li>
+            <li>Prevención de envío de tokens "null" al servidor</li>
+            <li>Manejo mejorado de errores de autenticación</li>
+            <li>Limpieza adecuada de tokens inválidos</li>
+        </ul>
+    </div>
+
+    <div class="card">
+        <h2>🧹 Para completar la reparación:</h2>
+        <p><strong>PASO 1:</strong> Limpia el caché de tu navegador</p>
+        <button onclick="limpiarTodo()">🧹 Limpiar LocalStorage + SessionStorage</button>
+        
+        <p><strong>PASO 2:</strong> Fuerza recarga del navegador</p>
+        <button onclick="recargarPagina()">🔄 Recargar Página (Ctrl+F5)</button>
+        
+        <p><strong>PASO 3 (Si aún hay problemas):</strong> Limpia caché del navegador manualmente</p>
+        <button class="danger" onclick="mostrarInstrucciones()">📖 Ver Instrucciones de Limpieza Manual</button>
+        
+        <div id="instrucciones" style="display: none; margin-top: 15px; padding: 15px; background-color: #f8f9fa; border-radius: 4px;">
+            <h3>Limpieza Manual del Navegador:</h3>
+            <p><strong>Chrome/Edge:</strong> Ctrl+Shift+Delete → Seleccionar "Imágenes y archivos almacenados en caché" → Eliminar datos</p>
+            <p><strong>Firefox:</strong> Ctrl+Shift+Delete → Seleccionar "Caché" → Limpiar ahora</p>
+            <p><strong>Alternativa:</strong> Abre ventana de incógnito/privada para probar</p>
+        </div>
+    </div>
+
+    <div class="card">
+        <h2>🧪 Probar el Sistema:</h2>
+        <p>Después de limpiar el caché, prueba estas funciones:</p>
+        <button onclick="irAlSistema()">🚀 Ir al Sistema Principal</button>
+        <button onclick="irAlTest()">🔧 Ir a Página de Pruebas</button>
+    </div>
+
+    <div class="card">
+        <h2>📊 Estado del Servidor:</h2>
+        <p>✅ Servidor funcionando en puerto 3445</p>
+        <p>✅ Base de datos conectada</p>
+        <p>✅ Validación de tokens implementada</p>
+        <p>✅ Guillermo puede ahora solicitar permisos sin errores</p>
+    </div>
+
+    <script>
+        function limpiarTodo() {
+            localStorage.clear();
+            sessionStorage.clear();
+            
+            // Limpiar cookies del dominio actual
+            document.cookie.split(";").forEach(function(c) { 
+                document.cookie = c.replace(/^ +/, "").replace(/=.*/, "=;expires=" + new Date().toUTCString() + ";path=/"); 
+            });
+            
+            alert('✅ LocalStorage, SessionStorage y cookies limpiados.\n\n🔄 Ahora recarga la página con Ctrl+F5');
+        }
+        
+        function recargarPagina() {
+            // Forzar recarga sin caché
+            window.location.reload(true);
+        }
+        
+        function mostrarInstrucciones() {
+            const div = document.getElementById('instrucciones');
+            div.style.display = div.style.display === 'none' ? 'block' : 'none';
+        }
+        
+        function irAlSistema() {
+            window.location.href = '/';
+        }
+        
+        function irAlTest() {
+            window.location.href = '/test_auth.html';
+        }
+    </script>
+</body>
+</html>

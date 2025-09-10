@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Diagnóstico Botón Nueva Solicitud</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+</head>
+<body>
+    <div class="container mt-4">
+        <h1><i class="fas fa-bug me-2"></i>Diagnóstico: Botón Nueva Solicitud</h1>
+        
+        <div class="alert alert-info">
+            <i class="fas fa-info-circle me-2"></i>
+            Esta página ayuda a diagnosticar problemas con el botón "Nueva Solicitud"
+        </div>
+
+        <div class="row">
+            <div class="col-md-8">
+                <div class="card">
+                    <div class="card-header">
+                        <h5><i class="fas fa-vial me-2"></i>Pruebas de Funcionamiento</h5>
+                    </div>
+                    <div class="card-body">
+                        <!-- Botón de prueba -->
+                        <div class="mb-4">
+                            <h6>Botón de Prueba:</h6>
+                            <button class="btn btn-primary" id="btnPrueba">
+                                <i class="fas fa-plus me-2"></i>Nueva Solicitud (Prueba)
+                            </button>
+                        </div>
+
+                        <!-- Resultados -->
+                        <div class="mb-4">
+                            <h6>Resultados de Diagnóstico:</h6>
+                            <div id="resultados" class="border p-3 bg-light" style="min-height: 200px; font-family: monospace; font-size: 12px;"></div>
+                        </div>
+
+                        <!-- Botones de acción -->
+                        <div class="d-flex gap-2">
+                            <button class="btn btn-success" onclick="ejecutarDiagnostico()">
+                                <i class="fas fa-play me-1"></i>Ejecutar Diagnóstico
+                            </button>
+                            <button class="btn btn-info" onclick="probarToken()">
+                                <i class="fas fa-key me-1"></i>Probar Token
+                            </button>
+                            <button class="btn btn-warning" onclick="probarEndpoint()">
+                                <i class="fas fa-network-wired me-1"></i>Probar API
+                            </button>
+                            <button class="btn btn-secondary" onclick="limpiarResultados()">
+                                <i class="fas fa-eraser me-1"></i>Limpiar
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-md-4">
+                <div class="card">
+                    <div class="card-header">
+                        <h6><i class="fas fa-question-circle me-2"></i>Instrucciones</h6>
+                    </div>
+                    <div class="card-body">
+                        <ol>
+                            <li>Ejecuta el diagnóstico</li>
+                            <li>Revisa los resultados</li>
+                            <li>Verifica que tengas un token válido</li>
+                            <li>Prueba el endpoint API</li>
+                            <li>Si todo está bien, el problema puede ser en el frontend</li>
+                        </ol>
+                        
+                        <hr>
+                        
+                        <h6><i class="fas fa-tools me-2"></i>Soluciones Comunes:</h6>
+                        <ul class="small">
+                            <li>Recargar la página</li>
+                            <li>Limpiar cache del navegador</li>
+                            <li>Verificar consola de errores (F12)</li>
+                            <li>Comprobar si JavaScript está habilitado</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        let resultadosDiv = document.getElementById('resultados');
+        
+        function log(message) {
+            const timestamp = new Date().toLocaleTimeString();
+            resultadosDiv.innerHTML += `[${timestamp}] ${message}\n`;
+            resultadosDiv.scrollTop = resultadosDiv.scrollHeight;
+        }
+
+        function limpiarResultados() {
+            resultadosDiv.innerHTML = '';
+        }
+
+        function ejecutarDiagnostico() {
+            log('🔍 Iniciando diagnóstico completo...\n');
+            
+            // 1. Verificar empleadoSystem
+            if (typeof window.empleadoSystem !== 'undefined') {
+                log('✅ empleadoSystem existe');
+                if (typeof window.empleadoSystem.mostrarSolicitudPermiso === 'function') {
+                    log('✅ Función mostrarSolicitudPermiso disponible');
+                } else {
+                    log('❌ Función mostrarSolicitudPermiso NO disponible');
+                }
+            } else {
+                log('❌ empleadoSystem NO existe');
+            }
+            
+            // 2. Verificar token
+            const token = localStorage.getItem('empleado_token');
+            if (token) {
+                log('✅ Token encontrado en localStorage');
+                try {
+                    const payload = JSON.parse(atob(token.split('.')[1]));
+                    const isValid = payload.exp > Date.now()/1000;
+                    log(`${isValid ? '✅' : '❌'} Token ${isValid ? 'válido' : 'EXPIRADO'}`);
+                    log(`   Empleado: ${payload.nombre}`);
+                } catch (err) {
+                    log('❌ Error decodificando token');
+                }
+            } else {
+                log('❌ Token NO encontrado');
+            }
+            
+            // 3. Verificar botones en DOM
+            const botones = document.querySelectorAll('button');
+            let encontrados = 0;
+            botones.forEach(btn => {
+                if (btn.textContent.includes('Nueva Solicitud')) {
+                    encontrados++;
+                    log(`✅ Botón encontrado: onclick="${btn.getAttribute('onclick')}"`);
+                }
+            });
+            log(`Total botones "Nueva Solicitud": ${encontrados}`);
+            
+            log('\n✅ Diagnóstico completado');
+        }
+
+        function probarToken() {
+            log('🔑 Verificando token...');
+            const token = localStorage.getItem('empleado_token');
+            
+            if (!token) {
+                log('❌ No hay token. Necesitas hacer login primero.');
+                return;
+            }
+            
+            try {
+                const payload = JSON.parse(atob(token.split('.')[1]));
+                log(`✅ Token decodificado:`);
+                log(`   ID: ${payload.id}`);
+                log(`   Nombre: ${payload.nombre}`);
+                log(`   Expiración: ${new Date(payload.exp * 1000).toLocaleString()}`);
+                log(`   ¿Válido?: ${payload.exp > Date.now()/1000 ? '✅ SÍ' : '❌ EXPIRADO'}`);
+            } catch (error) {
+                log('❌ Error decodificando token: ' + error.message);
+            }
+        }
+
+        function probarEndpoint() {
+            log('🌐 Probando endpoint /api/solicitudes-empleado/tipos-permisos...');
+            const token = localStorage.getItem('empleado_token');
+            
+            if (!token) {
+                log('❌ No hay token para la prueba');
+                return;
+            }
+            
+            fetch('/api/solicitudes-empleado/tipos-permisos', {
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                }
+            })
+            .then(response => {
+                log(`📡 Response status: ${response.status} ${response.ok ? '✅' : '❌'}`);
+                return response.json();
+            })
+            .then(data => {
+                log(`✅ Tipos de permisos obtenidos: ${data.length}`);
+                data.forEach((tipo, i) => {
+                    log(`   ${i+1}. ${tipo.nombre} (${tipo.codigo})`);
+                });
+            })
+            .catch(error => {
+                log('❌ Error en endpoint: ' + error.message);
+            });
+        }
+
+        // Prueba del botón
+        document.getElementById('btnPrueba').addEventListener('click', function() {
+            log('🖱️ ¡Botón de prueba clickeado correctamente!');
+            
+            // Intentar ejecutar la función si existe
+            if (typeof window.empleadoSystem !== 'undefined' && 
+                typeof window.empleadoSystem.mostrarSolicitudPermiso === 'function') {
+                try {
+                    log('🚀 Ejecutando empleadoSystem.mostrarSolicitudPermiso()...');
+                    window.empleadoSystem.mostrarSolicitudPermiso();
+                    log('✅ Función ejecutada exitosamente');
+                } catch (error) {
+                    log('❌ Error ejecutando función: ' + error.message);
+                }
+            } else {
+                log('❌ empleadoSystem no disponible para prueba');
+            }
+        });
+
+        // Ejecutar diagnóstico automático al cargar
+        window.addEventListener('load', function() {
+            setTimeout(() => {
+                log('🏁 Página cargada. Ejecutando diagnóstico inicial...\n');
+                ejecutarDiagnostico();
+            }, 1000);
+        });
+    </script>
+</body>
+</html>

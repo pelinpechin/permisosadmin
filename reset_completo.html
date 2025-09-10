@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🔄 Reset Completo del Sistema</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            min-height: 100vh;
+        }
+        .card {
+            background: rgba(255,255,255,0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 15px;
+            padding: 25px;
+            margin: 20px 0;
+            border: 1px solid rgba(255,255,255,0.2);
+        }
+        button {
+            background: linear-gradient(45deg, #28a745, #20c997);
+            color: white;
+            border: none;
+            padding: 15px 25px;
+            border-radius: 8px;
+            cursor: pointer;
+            margin: 10px 5px;
+            font-size: 16px;
+            font-weight: bold;
+            transition: all 0.3s;
+        }
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+        }
+        .emergency {
+            background: linear-gradient(45deg, #dc3545, #c82333);
+        }
+        .step {
+            background: rgba(255,255,255,0.05);
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 8px;
+            border-left: 4px solid #28a745;
+        }
+        .warning {
+            background: rgba(255,193,7,0.2);
+            border-left-color: #ffc107;
+        }
+        h1 { text-align: center; text-shadow: 2px 2px 4px rgba(0,0,0,0.5); }
+        .status {
+            background: rgba(0,0,0,0.3);
+            padding: 15px;
+            border-radius: 8px;
+            font-family: monospace;
+            margin: 10px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <h1>🚨 RESET COMPLETO DEL SISTEMA DE TOKENS</h1>
+        <p><strong>Problema:</strong> No tienes token válido y el sistema está enviando "Bearer null"</p>
+        <p><strong>Solución:</strong> Reset completo y login forzado</p>
+    </div>
+
+    <div class="card">
+        <h2>🔧 PASO 1: Limpieza Total</h2>
+        <button onclick="limpiezaTotal()" class="emergency">
+            🧹 LIMPIEZA TOTAL (Todo el Storage + Caché)
+        </button>
+        <div id="status1" class="status" style="display:none;"></div>
+    </div>
+
+    <div class="card">
+        <h2>🔄 PASO 2: Login Manual de Guillermo</h2>
+        <button onclick="loginManualGuillermo()">
+            👨‍💼 LOGIN MANUAL - Guillermo (18.208.947-8)
+        </button>
+        <div id="status2" class="status" style="display:none;"></div>
+    </div>
+
+    <div class="card">
+        <h2>🧪 PASO 3: Verificar Sistema</h2>
+        <button onclick="verificarToken()">
+            ✅ Verificar Token
+        </button>
+        <button onclick="probarAPI()">
+            🚀 Probar API
+        </button>
+        <div id="status3" class="status" style="display:none;"></div>
+    </div>
+
+    <div class="card warning">
+        <h2>⚠️ Si nada funciona:</h2>
+        <div class="step">
+            <strong>OPCIÓN A:</strong> Cierra completamente el navegador → Abre nueva ventana → Ve directo a http://localhost:3445
+        </div>
+        <div class="step">
+            <strong>OPCIÓN B:</strong> Usa ventana de incógnito/privada para probar
+        </div>
+        <div class="step">
+            <strong>OPCIÓN C:</strong> Diferentes navegador (Chrome → Firefox, etc.)
+        </div>
+    </div>
+
+    <div class="card">
+        <h2>🎯 Al Final:</h2>
+        <button onclick="irAlSistema()">
+            🏠 IR AL SISTEMA PRINCIPAL
+        </button>
+    </div>
+
+    <script>
+        function log(message, statusId = 'status1') {
+            const status = document.getElementById(statusId);
+            status.style.display = 'block';
+            status.innerHTML += new Date().toLocaleTimeString() + ': ' + message + '<br>';
+            console.log(message);
+        }
+
+        async function limpiezaTotal() {
+            log('🧹 Iniciando limpieza total...', 'status1');
+            
+            // 1. Limpiar todo el storage
+            localStorage.clear();
+            sessionStorage.clear();
+            log('✅ LocalStorage y SessionStorage limpiados', 'status1');
+            
+            // 2. Limpiar cookies
+            document.cookie.split(";").forEach(function(c) { 
+                document.cookie = c.replace(/^ +/, "").replace(/=.*/, "=;expires=" + new Date().toUTCString() + ";path=/"); 
+            });
+            log('✅ Cookies limpiadas', 'status1');
+            
+            // 3. Limpiar caché si es posible
+            if ('caches' in window) {
+                const cacheNames = await caches.keys();
+                for (const cacheName of cacheNames) {
+                    await caches.delete(cacheName);
+                }
+                log('✅ Caché del navegador limpiado', 'status1');
+            }
+            
+            // 4. Limpiar variables globales que puedan existir
+            if (typeof window.empleadoSys !== 'undefined') {
+                window.empleadoSys = null;
+                log('✅ EmpleadoSystem resetado', 'status1');
+            }
+            
+            if (typeof window.api !== 'undefined') {
+                if (window.api.setToken) {
+                    window.api.setToken(null);
+                }
+                log('✅ API client resetado', 'status1');
+            }
+            
+            log('🎉 LIMPIEZA TOTAL COMPLETADA', 'status1');
+        }
+
+        async function loginManualGuillermo() {
+            log('👨‍💼 Iniciando login manual de Guillermo...', 'status2');
+            
+            try {
+                const response = await fetch('/api/auth/login/empleado', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        rut: '18.208.947-8'
+                    })
+                });
+                
+                log(`📡 Respuesta del servidor: ${response.status}`, 'status2');
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    log('✅ Login exitoso!', 'status2');
+                    log(`Usuario: ${data.data.user.nombre}`, 'status2');
+                    log(`Token recibido: ${data.data.token ? 'SÍ' : 'NO'}`, 'status2');
+                    
+                    if (data.data.token) {
+                        // Guardar token en ambas ubicaciones
+                        localStorage.setItem('auth_token', data.data.token);
+                        localStorage.setItem('empleado_token', data.data.token);
+                        localStorage.setItem('empleado_data', JSON.stringify(data.data.user));
+                        log('💾 Token guardado en localStorage', 'status2');
+                        
+                        // Verificar que se guardó correctamente
+                        const tokenVerif = localStorage.getItem('auth_token');
+                        log(`🔍 Token verificado: ${tokenVerif ? 'GUARDADO' : 'ERROR'}`, 'status2');
+                        
+                        log('🎉 LOGIN COMPLETADO EXITOSAMENTE', 'status2');
+                    }
+                } else {
+                    const error = await response.text();
+                    log(`❌ Error en login: ${error}`, 'status2');
+                }
+                
+            } catch (error) {
+                log(`❌ Error de conexión: ${error.message}`, 'status2');
+            }
+        }
+
+        async function verificarToken() {
+            log('🔍 Verificando tokens...', 'status3');
+            
+            const authToken = localStorage.getItem('auth_token');
+            const empleadoToken = localStorage.getItem('empleado_token');
+            
+            log(`auth_token: ${authToken ? '✅ EXISTE' : '❌ NO EXISTE'}`, 'status3');
+            log(`empleado_token: ${empleadoToken ? '✅ EXISTE' : '❌ NO EXISTE'}`, 'status3');
+            
+            if (authToken) {
+                log(`Token length: ${authToken.length}`, 'status3');
+                log(`Token preview: ${authToken.substring(0, 30)}...`, 'status3');
+            }
+        }
+
+        async function probarAPI() {
+            log('🚀 Probando API...', 'status3');
+            
+            const token = localStorage.getItem('auth_token') || localStorage.getItem('empleado_token');
+            
+            if (!token) {
+                log('❌ No hay token para probar', 'status3');
+                return;
+            }
+            
+            try {
+                const response = await fetch('/api/solicitudes-empleado/dashboard', {
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+                
+                log(`📡 API Response: ${response.status}`, 'status3');
+                
+                if (response.ok) {
+                    log('🎉 API FUNCIONANDO CORRECTAMENTE', 'status3');
+                    const data = await response.json();
+                    log(`Dashboard data: ${JSON.stringify(data).substring(0, 100)}...`, 'status3');
+                } else {
+                    const error = await response.text();
+                    log(`❌ API Error: ${error}`, 'status3');
+                }
+                
+            } catch (error) {
+                log(`❌ Connection Error: ${error.message}`, 'status3');
+            }
+        }
+
+        function irAlSistema() {
+            window.location.href = '/';
+        }
+    </script>
+</body>
+</html>

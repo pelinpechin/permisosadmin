@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Básico de Carga</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .test-box { border: 1px solid #ccc; padding: 15px; margin: 10px 0; border-radius: 5px; }
+        .success { background-color: #d4edda; border-color: #c3e6cb; }
+        .error { background-color: #f8d7da; border-color: #f5c6cb; }
+        .info { background-color: #d1ecf1; border-color: #bee5eb; }
+        pre { background: #f8f9fa; padding: 10px; border-radius: 3px; overflow-x: auto; }
+    </style>
+</head>
+<body>
+    <h1>🔧 Test Básico de Carga del Sistema</h1>
+    
+    <div id="resultados"></div>
+    
+    <div class="test-box info">
+        <h3>Pasos del Test:</h3>
+        <ol>
+            <li>Verificar carga de archivos JavaScript</li>
+            <li>Comprobar errores en consola</li>
+            <li>Verificar token de empleado</li>
+            <li>Probar conexión al servidor</li>
+            <li>Test básico de empleadoSystem</li>
+        </ol>
+    </div>
+    
+    <button onclick="ejecutarTestCompleto()" style="padding: 10px 20px; font-size: 16px; background: #007bff; color: white; border: none; border-radius: 5px; cursor: pointer;">
+        🚀 Ejecutar Test Completo
+    </button>
+    
+    <script>
+        let resultados = document.getElementById('resultados');
+        
+        function agregarResultado(titulo, mensaje, tipo = 'info') {
+            const div = document.createElement('div');
+            div.className = `test-box ${tipo}`;
+            div.innerHTML = `<h3>${titulo}</h3><pre>${mensaje}</pre>`;
+            resultados.appendChild(div);
+        }
+        
+        function ejecutarTestCompleto() {
+            resultados.innerHTML = '';
+            agregarResultado('🔄 Iniciando Test', 'Test de carga completo iniciado...');
+            
+            // Test 1: Verificar carga de empleadoSystem
+            setTimeout(() => {
+                if (typeof window.empleadoSystem !== 'undefined') {
+                    agregarResultado('✅ Test 1: EmpleadoSystem', 'empleadoSystem está cargado y disponible', 'success');
+                    testEmpleadoSystemFunciones();
+                } else {
+                    agregarResultado('❌ Test 1: EmpleadoSystem', 'empleadoSystem NO está disponible\nPosibles causas:\n- Error al cargar empleado_system.js\n- Error de JavaScript que impide la carga\n- Archivo no encontrado', 'error');
+                    testArchivoJavaScript();
+                }
+            }, 500);
+        }
+        
+        function testEmpleadoSystemFunciones() {
+            let mensaje = '';
+            
+            // Verificar funciones principales
+            const funciones = [
+                'mostrarSolicitudPermiso',
+                'mostrarDashboardEmpleado',
+                'mostrarMisSolicitudes',
+                'login',
+                'logout'
+            ];
+            
+            funciones.forEach(func => {
+                const disponible = typeof window.empleadoSystem[func] === 'function';
+                mensaje += `${disponible ? '✅' : '❌'} ${func}: ${disponible ? 'Disponible' : 'NO disponible'}\n`;
+            });
+            
+            // Verificar propiedades
+            mensaje += `\nPropiedades:\n`;
+            mensaje += `- Token: ${window.empleadoSystem.token ? 'Presente' : 'No presente'}\n`;
+            mensaje += `- Empleado: ${window.empleadoSystem.empleado ? 'Cargado' : 'No cargado'}\n`;
+            
+            agregarResultado('📋 Test 2: Funciones de EmpleadoSystem', mensaje, 'success');
+            testToken();
+        }
+        
+        function testArchivoJavaScript() {
+            // Verificar si el archivo empleado_system.js se cargó
+            const scripts = document.getElementsByTagName('script');
+            let archivoEncontrado = false;
+            let mensaje = 'Scripts cargados:\n';
+            
+            for (let script of scripts) {
+                if (script.src && script.src.includes('empleado_system.js')) {
+                    archivoEncontrado = true;
+                    mensaje += `✅ ${script.src}\n`;
+                } else if (script.src) {
+                    mensaje += `📄 ${script.src}\n`;
+                }
+            }
+            
+            if (!archivoEncontrado) {
+                mensaje += '\n❌ empleado_system.js NO encontrado en los scripts cargados';
+            }
+            
+            agregarResultado('📜 Test: Archivos JavaScript', mensaje, archivoEncontrado ? 'success' : 'error');
+            testErroresConsola();
+        }
+        
+        function testToken() {
+            const token = localStorage.getItem('empleado_token');
+            let mensaje = '';
+            
+            if (token) {
+                try {
+                    const payload = JSON.parse(atob(token.split('.')[1]));
+                    const valido = payload.exp > Date.now()/1000;
+                    mensaje = `Token encontrado:\n`;
+                    mensaje += `- Empleado: ${payload.nombre}\n`;
+                    mensaje += `- ID: ${payload.id}\n`;
+                    mensaje += `- Expiración: ${new Date(payload.exp * 1000).toLocaleString()}\n`;
+                    mensaje += `- Estado: ${valido ? '✅ Válido' : '❌ EXPIRADO'}`;
+                    agregarResultado('🔑 Test 3: Token', mensaje, valido ? 'success' : 'error');
+                } catch (error) {
+                    agregarResultado('🔑 Test 3: Token', `Token presente pero inválido:\n${error.message}`, 'error');
+                }
+            } else {
+                agregarResultado('🔑 Test 3: Token', '❌ No hay token de empleado en localStorage\nNecesitas hacer login primero', 'error');
+            }
+            
+            testConexionServidor();
+        }
+        
+        function testConexionServidor() {
+            fetch('/api/solicitudes-empleado/tipos-permisos', {
+                headers: {
+                    'Authorization': `Bearer ${localStorage.getItem('empleado_token') || 'test'}`
+                }
+            })
+            .then(response => {
+                const mensaje = `Conexión al servidor:\n- Status: ${response.status}\n- OK: ${response.ok}\n- URL: ${response.url}`;
+                agregarResultado('🌐 Test 4: Servidor', mensaje, response.status === 401 ? 'info' : (response.ok ? 'success' : 'error'));
+                return response.text();
+            })
+            .then(text => {
+                console.log('Respuesta del servidor:', text);
+            })
+            .catch(error => {
+                agregarResultado('🌐 Test 4: Servidor', `❌ Error de conexión:\n${error.message}`, 'error');
+            })
+            .finally(() => {
+                testErroresConsola();
+            });
+        }
+        
+        function testErroresConsola() {
+            // Capturar errores de consola
+            let mensaje = 'Errores de JavaScript capturados:\n';
+            
+            const originalError = console.error;
+            const errores = [];
+            
+            console.error = function(...args) {
+                errores.push(args.join(' '));
+                originalError.apply(console, args);
+            };
+            
+            setTimeout(() => {
+                console.error = originalError;
+                if (errores.length > 0) {
+                    mensaje += errores.join('\n');
+                    agregarResultado('🐛 Test 5: Errores de Consola', mensaje, 'error');
+                } else {
+                    agregarResultado('🐛 Test 5: Errores de Consola', '✅ No se detectaron errores de JavaScript', 'success');
+                }
+                
+                mostrarResumenFinal();
+            }, 2000);
+        }
+        
+        function mostrarResumenFinal() {
+            const solucion = `
+SOLUCIONES POSIBLES:
+
+1. Si empleadoSystem no está cargado:
+   - Verificar que empleado_system.js esté en /public/js/
+   - Revisar errores en la consola del navegador (F12)
+   - Recargar la página completamente (Ctrl+F5)
+
+2. Si no hay token:
+   - Hacer login como empleado primero
+   - Verificar que las credenciales sean correctas
+
+3. Si el servidor no responde:
+   - Verificar que el servidor Node.js esté ejecutándose
+   - Comprobar que esté en el puerto correcto
+
+4. Solución de emergencia:
+   - Abrir consola (F12) y ejecutar: location.reload(true)
+   - O acceder directamente a: http://localhost:3000
+            `;
+            
+            agregarResultado('💡 Soluciones', solucion, 'info');
+        }
+        
+        // Ejecutar test automático al cargar
+        window.addEventListener('load', () => {
+            setTimeout(ejecutarTestCompleto, 1000);
+        });
+    </script>
+</body>
+</html>

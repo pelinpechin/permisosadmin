@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Auth Token</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+        }
+        .result {
+            margin: 10px 0;
+            padding: 10px;
+            border-radius: 4px;
+        }
+        .success { background-color: #d4edda; color: #155724; }
+        .error { background-color: #f8d7da; color: #721c24; }
+        button {
+            padding: 10px 15px;
+            margin: 5px;
+            border: none;
+            border-radius: 4px;
+            background-color: #007bff;
+            color: white;
+            cursor: pointer;
+        }
+        button:hover { background-color: #0056b3; }
+    </style>
+</head>
+<body>
+    <h1>🔧 Test Auth Token - Fixed!</h1>
+    <p><strong>Estado:</strong> Se ha solucionado el problema "No hay token disponible" y "jwt malformed".</p>
+    <p><strong>Cambios realizados:</strong></p>
+    <ul>
+        <li>✅ Agregada validación de tokens antes de hacer peticiones API</li>
+        <li>✅ Prevenido envío de tokens "null" al servidor</li>
+        <li>✅ Mejorado manejo de errores de autenticación</li>
+    </ul>
+    
+    <div>
+        <button onclick="checkTokens()">1. Verificar tokens almacenados</button>
+        <button onclick="testLogin()">2. Probar login de empleado</button>
+        <button onclick="testAPI()">3. Probar API con token</button>
+        <button onclick="testEmployeeRequest()">4. 🎯 Test solicitud de permiso</button>
+        <button onclick="clearAll()">5. Limpiar todo</button>
+    </div>
+    
+    <div id="results"></div>
+    
+    <script>
+        function log(message, type = 'info') {
+            const div = document.createElement('div');
+            div.className = `result ${type}`;
+            div.innerHTML = `<strong>${new Date().toLocaleTimeString()}:</strong> ${message}`;
+            document.getElementById('results').appendChild(div);
+        }
+        
+        function checkTokens() {
+            log('=== VERIFICANDO TOKENS ===');
+            const authToken = localStorage.getItem('auth_token');
+            const empleadoToken = localStorage.getItem('empleado_token');
+            
+            log(`auth_token: ${authToken ? 'EXISTE' : 'NO EXISTE'}`, authToken ? 'success' : 'error');
+            if (authToken) {
+                log(`Longitud: ${authToken.length}`);
+                log(`Inicia con: ${authToken.substring(0, 20)}...`);
+            }
+            
+            log(`empleado_token: ${empleadoToken ? 'EXISTE' : 'NO EXISTE'}`, empleadoToken ? 'success' : 'error');
+            if (empleadoToken) {
+                log(`Longitud: ${empleadoToken.length}`);
+                log(`Inicia con: ${empleadoToken.substring(0, 20)}...`);
+            }
+        }
+        
+        async function testLogin() {
+            log('=== PROBANDO LOGIN ===');
+            try {
+                const response = await fetch('/api/auth/login/empleado', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({rut: '18.208.947-8'})
+                });
+                
+                const data = await response.json();
+                log(`Status: ${response.status}`, response.ok ? 'success' : 'error');
+                log(`Response: ${JSON.stringify(data, null, 2)}`);
+                
+                if (data.success && data.data.token) {
+                    localStorage.setItem('auth_token', data.data.token);
+                    localStorage.setItem('empleado_token', data.data.token);
+                    log('Token guardado en localStorage', 'success');
+                }
+            } catch (error) {
+                log(`Error: ${error.message}`, 'error');
+            }
+        }
+        
+        async function testAPI() {
+            log('=== PROBANDO API ===');
+            const token = localStorage.getItem('auth_token') || localStorage.getItem('empleado_token');
+            
+            if (!token) {
+                log('No hay token disponible', 'error');
+                return;
+            }
+            
+            log(`Usando token: ${token.substring(0, 20)}...`);
+            
+            try {
+                const response = await fetch('/api/solicitudes-empleado/dashboard', {
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+                
+                log(`Status: ${response.status}`, response.ok ? 'success' : 'error');
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    log('API funcionando correctamente!', 'success');
+                    log(`Data: ${JSON.stringify(data, null, 2)}`);
+                } else {
+                    const error = await response.text();
+                    log(`Error API: ${error}`, 'error');
+                }
+            } catch (error) {
+                log(`Error: ${error.message}`, 'error');
+            }
+        }
+        
+        async function testEmployeeRequest() {
+            log('=== TEST SOLICITUD DE PERMISO ===');
+            const token = localStorage.getItem('auth_token') || localStorage.getItem('empleado_token');
+            
+            if (!token) {
+                log('No hay token. Probando login primero...', 'error');
+                await testLogin();
+                return;
+            }
+            
+            try {
+                // 1. Test tipos de permisos
+                log('1️⃣ Probando /tipos-permisos...');
+                const tiposResponse = await fetch('/api/solicitudes-empleado/tipos-permisos', {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                
+                if (tiposResponse.ok) {
+                    const tipos = await tiposResponse.json();
+                    log(`✅ Tipos de permisos obtenidos: ${tipos.length}`, 'success');
+                } else {
+                    log(`❌ Error tipos: ${tiposResponse.status}`, 'error');
+                }
+                
+                // 2. Test crear solicitud (simulado)
+                log('2️⃣ Simulando creación de solicitud...');
+                const createResponse = await fetch('/api/solicitudes-empleado/crear', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify({
+                        tipo_permiso: 'VAC',
+                        fecha_solicitud: '2024-12-25',
+                        motivo: 'Test de la API para verificar que funciona correctamente',
+                        observaciones: 'Solicitud de prueba'
+                    })
+                });
+                
+                log(`Respuesta crear: ${createResponse.status}`, createResponse.ok ? 'success' : 'error');
+                
+            } catch (error) {
+                log(`Error en test: ${error.message}`, 'error');
+            }
+        }
+
+        function clearAll() {
+            log('=== LIMPIANDO TODO ===');
+            localStorage.clear();
+            sessionStorage.clear();
+            log('Storage limpiado', 'success');
+        }
+    </script>
+</body>
+</html>

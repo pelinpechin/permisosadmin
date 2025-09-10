@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Simple - Solicitudes</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; }
+        .button { padding: 10px 20px; margin: 10px; cursor: pointer; }
+        .success { background: #4CAF50; color: white; }
+        .error { background: #f44336; color: white; }
+        .info { background: #2196F3; color: white; }
+        pre { background: #f5f5f5; padding: 10px; overflow: auto; }
+    </style>
+</head>
+<body>
+    <h1>🧪 Test Simple - Sistema de Solicitudes</h1>
+    
+    <div id="status">Preparando test...</div>
+    
+    <button class="button success" onclick="ejecutarTest()">
+        🚀 Ejecutar Test de Solicitud
+    </button>
+    
+    <button class="button info" onclick="verificarToken()">
+        🔑 Verificar Token
+    </button>
+    
+    <div id="logs">
+        <h3>📋 Logs:</h3>
+        <pre id="logContent"></pre>
+    </div>
+
+    <script>
+        function log(mensaje) {
+            const logElement = document.getElementById('logContent');
+            const timestamp = new Date().toLocaleTimeString();
+            logElement.textContent += `[${timestamp}] ${mensaje}\n`;
+            console.log(mensaje);
+        }
+
+        function setStatus(mensaje, tipo = 'info') {
+            const statusElement = document.getElementById('status');
+            statusElement.textContent = mensaje;
+            statusElement.className = tipo;
+            log(`STATUS: ${mensaje}`);
+        }
+
+        function verificarToken() {
+            log('🔍 Verificando token...');
+            
+            const token = localStorage.getItem('empleado_token');
+            const empleadoData = localStorage.getItem('empleado_data');
+            
+            if (!token) {
+                setStatus('❌ No hay token de empleado', 'error');
+                log('❌ No se encontró empleado_token en localStorage');
+                return false;
+            }
+            
+            log(`✅ Token encontrado: ${token.substring(0, 30)}...`);
+            
+            if (empleadoData) {
+                const empleado = JSON.parse(empleadoData);
+                log(`✅ Empleado: ${empleado.nombre} (${empleado.rut})`);
+            }
+            
+            setStatus('✅ Token válido encontrado', 'success');
+            return token;
+        }
+
+        async function ejecutarTest() {
+            log('🚀 Iniciando test de solicitud...');
+            
+            const token = verificarToken();
+            if (!token) {
+                return;
+            }
+            
+            const testData = {
+                tipo_permiso: 'T',
+                fecha_solicitud: '2025-08-30',
+                motivo: 'Test desde página simple - verificando notificaciones',
+                observaciones: 'Prueba del sistema de notificaciones supervisor/autorizador'
+            };
+            
+            log(`📤 Enviando datos: ${JSON.stringify(testData, null, 2)}`);
+            setStatus('📤 Enviando solicitud...', 'info');
+            
+            try {
+                const response = await fetch('/api/solicitudes-empleado/crear', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify(testData)
+                });
+                
+                log(`📬 Response status: ${response.status} ${response.statusText}`);
+                log(`📬 Response headers: ${JSON.stringify([...response.headers.entries()])}`);
+                
+                const responseData = await response.json();
+                log(`📬 Response data: ${JSON.stringify(responseData, null, 2)}`);
+                
+                if (response.ok) {
+                    setStatus('🎉 ¡SOLICITUD CREADA EXITOSAMENTE!', 'success');
+                    log('🎉 La solicitud fue creada y las notificaciones fueron enviadas');
+                } else {
+                    setStatus(`❌ Error: ${responseData.error}`, 'error');
+                    log(`❌ Error del servidor: ${responseData.error}`);
+                }
+                
+            } catch (error) {
+                log(`💥 Error de red: ${error.message}`);
+                setStatus(`💥 Error de red: ${error.message}`, 'error');
+            }
+        }
+
+        // Verificar token al cargar la página
+        window.onload = function() {
+            if (verificarToken()) {
+                setStatus('✅ Listo para ejecutar test', 'success');
+            } else {
+                setStatus('❌ Necesitas estar logueado como empleado primero', 'error');
+            }
+        };
+    </script>
+</body>
+</html>

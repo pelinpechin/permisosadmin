@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Admin Login</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 50px; }
+        .form-group { margin: 10px 0; }
+        input { padding: 8px; width: 200px; }
+        button { padding: 10px 20px; background: #007bff; color: white; border: none; cursor: pointer; }
+        .result { margin-top: 20px; padding: 10px; background: #f8f9fa; border: 1px solid #ddd; }
+        .error { background: #f8d7da; border-color: #f5c6cb; color: #721c24; }
+        .success { background: #d4edda; border-color: #c3e6cb; color: #155724; }
+    </style>
+</head>
+<body>
+    <h1>Test Admin Login</h1>
+    
+    <form id="loginForm">
+        <div class="form-group">
+            <label>Username:</label><br>
+            <input type="text" id="username" value="miguel.rodriguez" required>
+        </div>
+        <div class="form-group">
+            <label>Password:</label><br>
+            <input type="password" id="password" value="miguel123" required>
+        </div>
+        <button type="submit">Login</button>
+    </form>
+    
+    <div id="result" class="result" style="display: none;"></div>
+    
+    <script>
+        document.getElementById('loginForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+            const result = document.getElementById('result');
+            
+            try {
+                console.log('Intentando login con:', username, password);
+                
+                const response = await fetch('/api/auth/login/admin', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ username, password })
+                });
+                
+                const data = await response.json();
+                
+                result.style.display = 'block';
+                
+                if (data.success) {
+                    result.className = 'result success';
+                    result.innerHTML = `
+                        <h3>✅ Login Exitoso</h3>
+                        <p><strong>Usuario:</strong> ${data.data.user.nombre}</p>
+                        <p><strong>Rol:</strong> ${data.data.user.rol}</p>
+                        <p><strong>Token:</strong> ${data.data.token.substring(0, 50)}...</p>
+                        <button onclick="testDashboard('${data.data.token}')">Probar Dashboard</button>
+                    `;
+                    
+                    // Guardar token para pruebas
+                    localStorage.setItem('admin_token', data.data.token);
+                } else {
+                    result.className = 'result error';
+                    result.innerHTML = `<h3>❌ Login Fallido</h3><p>${data.message}</p>`;
+                }
+                
+            } catch (error) {
+                result.style.display = 'block';
+                result.className = 'result error';
+                result.innerHTML = `<h3>❌ Error de Red</h3><p>${error.message}</p>`;
+            }
+        });
+        
+        async function testDashboard(token) {
+            const result = document.getElementById('result');
+            
+            try {
+                console.log('Probando dashboard admin...');
+                
+                const response = await fetch('/api/dashboard/admin', {
+                    method: 'GET',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    const pendientes = data.data.solicitudes_recientes?.filter(s => s.estado === 'PENDIENTE') || [];
+                    
+                    result.innerHTML += `
+                        <hr>
+                        <h3>✅ Dashboard Funciona</h3>
+                        <p><strong>Solicitudes Pendientes:</strong> ${pendientes.length}</p>
+                        <ul>
+                            ${pendientes.map(s => `<li>ID ${s.id}: ${s.empleado_nombre} - ${s.tipo_nombre}</li>`).join('')}
+                        </ul>
+                    `;
+                } else {
+                    result.innerHTML += `
+                        <hr>
+                        <h3>❌ Dashboard Error</h3>
+                        <p>${data.message || 'Error desconocido'}</p>
+                    `;
+                }
+                
+            } catch (error) {
+                result.innerHTML += `
+                    <hr>
+                    <h3>❌ Error Dashboard</h3>
+                    <p>${error.message}</p>
+                `;
+            }
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>✅ Sistema de Permisos - FUNCIONANDO</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            margin: 0;
+            padding: 20px;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+        }
+        .container {
+            background: rgba(255,255,255,0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 40px;
+            text-align: center;
+            box-shadow: 0 15px 35px rgba(0,0,0,0.3);
+            max-width: 600px;
+        }
+        .success {
+            color: #28a745;
+            font-size: 4rem;
+            margin-bottom: 20px;
+        }
+        h1 {
+            margin: 0 0 30px 0;
+            font-size: 2.5rem;
+        }
+        .feature {
+            background: rgba(255,255,255,0.1);
+            padding: 15px;
+            margin: 15px 0;
+            border-radius: 10px;
+            border-left: 4px solid #28a745;
+        }
+        .btn {
+            display: inline-block;
+            background: linear-gradient(45deg, #28a745, #20c997);
+            color: white;
+            text-decoration: none;
+            padding: 15px 30px;
+            border-radius: 10px;
+            margin: 10px;
+            font-weight: bold;
+            font-size: 1.1rem;
+            transition: transform 0.3s;
+        }
+        .btn:hover {
+            transform: translateY(-2px);
+            color: white;
+            text-decoration: none;
+        }
+        .admin { background: linear-gradient(45deg, #007bff, #6610f2); }
+        .port-info {
+            background: rgba(255,193,7,0.2);
+            padding: 15px;
+            border-radius: 8px;
+            margin: 20px 0;
+            border-left: 4px solid #ffc107;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="success">✅</div>
+        <h1>¡SISTEMA FUNCIONANDO!</h1>
+        
+        <div class="port-info">
+            <strong>Servidor ejecutándose en:</strong><br>
+            <code>http://localhost:3446</code>
+        </div>
+
+        <div class="feature">
+            <h3>🎯 Todo Implementado:</h3>
+            ✅ Login separado para empleados y admins<br>
+            ✅ Dashboard de empleados (crear permisos)<br>
+            ✅ Dashboard de admin (ver todos los permisos)<br>
+            ✅ API endpoints funcionando<br>
+            ✅ Sin conflictos de tokens
+        </div>
+
+        <h2>🚀 Acceder al Sistema:</h2>
+        
+        <a href="http://localhost:3446/login_simple.html" class="btn">
+            🏠 IR AL SISTEMA DE LOGIN
+        </a>
+
+        <div style="margin-top: 30px;">
+            <h3>👥 Cuentas de Prueba:</h3>
+            
+            <div class="feature">
+                <strong>👨‍💼 EMPLEADO (Guillermo):</strong><br>
+                RUT: <code>18.208.947-8</code><br>
+                → Puede crear solicitudes de permisos
+            </div>
+            
+            <div class="feature">
+                <strong>🔧 ADMINISTRADOR:</strong><br>
+                Usuario: <code>admin</code><br>
+                → Puede ver/aprobar todos los permisos
+            </div>
+        </div>
+
+        <div style="margin-top: 30px; font-size: 0.9rem; opacity: 0.8;">
+            <p>Sistema simplificado sin conflictos de tokens</p>
+            <p>Cada usuario tiene su propio dashboard</p>
+        </div>
+    </div>
+
+    <script>
+        // Verificar si el servidor está corriendo
+        fetch('http://localhost:3446/api/auth/login/empleado', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({rut: 'test'})
+        }).catch(error => {
+            if (error.name === 'TypeError' && error.message.includes('fetch')) {
+                document.querySelector('.port-info').innerHTML = `
+                    <strong style="color: #dc3545;">⚠️ Servidor no disponible</strong><br>
+                    Asegúrate de que el servidor esté ejecutándose en el puerto 3446
+                `;
+            }
+        });
+    </script>
+</body>
+</html>

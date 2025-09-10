@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard - Empleado</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
+        <div class="container">
+            <span class="navbar-brand">
+                <i class="fas fa-user me-2"></i>Panel Empleado
+            </span>
+            <div class="navbar-nav ms-auto">
+                <span class="nav-link text-white" id="userName">Cargando...</span>
+                <button class="btn btn-outline-light btn-sm" onclick="logout()">
+                    <i class="fas fa-sign-out-alt"></i> Salir
+                </button>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container mt-4">
+        <div class="row">
+            <div class="col-md-12">
+                <div class="card">
+                    <div class="card-body">
+                        <h5 class="card-title">
+                            <i class="fas fa-calendar-alt me-2"></i>Mis Permisos
+                        </h5>
+                        
+                        <button class="btn btn-success mb-3" onclick="nuevasolicitud()">
+                            <i class="fas fa-plus me-2"></i>Nueva Solicitud
+                        </button>
+
+                        <div class="table-responsive">
+                            <table class="table table-striped">
+                                <thead>
+                                    <tr>
+                                        <th>Fecha</th>
+                                        <th>Tipo</th>
+                                        <th>Motivo</th>
+                                        <th>Estado</th>
+                                        <th>Creado</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="permisosTable">
+                                    <tr>
+                                        <td colspan="5" class="text-center">
+                                            <i class="fas fa-spinner fa-spin"></i> Cargando permisos...
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Nueva Solicitud -->
+    <div class="modal fade" id="modalNuevaSolicitud" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Nueva Solicitud de Permiso</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="formSolicitud">
+                        <div class="mb-3">
+                            <label for="tipoPermiso" class="form-label">Tipo de Permiso</label>
+                            <select class="form-select" id="tipoPermiso" required>
+                                <option value="">Seleccionar...</option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label for="fechaPermiso" class="form-label">Fecha</label>
+                            <input type="date" class="form-control" id="fechaPermiso" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="motivoPermiso" class="form-label">Motivo</label>
+                            <textarea class="form-control" id="motivoPermiso" rows="3" 
+                                      placeholder="Describe el motivo de tu solicitud..." required></textarea>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="button" class="btn btn-primary" onclick="enviarSolicitud()">
+                        <i class="fas fa-paper-plane me-1"></i>Enviar Solicitud
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // Verificar autenticación
+        const token = localStorage.getItem('auth_token');
+        const userType = localStorage.getItem('user_type');
+        const userData = JSON.parse(localStorage.getItem('user_data') || '{}');
+
+        if (!token || userType !== 'empleado') {
+            window.location.href = '/login_simple.html';
+        }
+
+        // Mostrar nombre de usuario
+        document.getElementById('userName').textContent = userData.nombre || 'Usuario';
+
+        // Cargar permisos al iniciar
+        document.addEventListener('DOMContentLoaded', function() {
+            cargarPermisos();
+            cargarTiposPermisos();
+            
+            // Configurar fecha mínima
+            document.getElementById('fechaPermiso').min = new Date().toISOString().split('T')[0];
+        });
+
+        async function cargarPermisos() {
+            try {
+                const response = await fetch('/api/solicitudes-empleado/historial', {
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+                    mostrarPermisos(data);
+                } else {
+                    throw new Error('Error al cargar permisos');
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                document.getElementById('permisosTable').innerHTML = `
+                    <tr><td colspan="5" class="text-center text-danger">
+                        Error al cargar permisos. <a href="#" onclick="cargarPermisos()">Reintentar</a>
+                    </td></tr>
+                `;
+            }
+        }
+
+        function mostrarPermisos(permisos) {
+            const tbody = document.getElementById('permisosTable');
+            
+            if (permisos.length === 0) {
+                tbody.innerHTML = `
+                    <tr><td colspan="5" class="text-center text-muted">
+                        No tienes solicitudes de permisos. <a href="#" onclick="nuevasolición()">Crear primera solicitud</a>
+                    </td></tr>
+                `;
+                return;
+            }
+
+            tbody.innerHTML = permisos.map(permiso => {
+                const estadoClass = {
+                    'PENDIENTE': 'warning',
+                    'APROBADO': 'success',
+                    'RECHAZADO': 'danger'
+                }[permiso.estado] || 'secondary';
+
+                return `
+                    <tr>
+                        <td>${new Date(permiso.fecha_desde).toLocaleDateString('es-CL')}</td>
+                        <td>${permiso.tipo_permiso_nombre || permiso.tipo_permiso}</td>
+                        <td>${permiso.motivo}</td>
+                        <td><span class="badge bg-${estadoClass}">${permiso.estado}</span></td>
+                        <td>${new Date(permiso.created_at).toLocaleDateString('es-CL')}</td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        async function cargarTiposPermisos() {
+            try {
+                const response = await fetch('/api/solicitudes-empleado/tipos-permisos', {
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+
+                if (response.ok) {
+                    const tipos = await response.json();
+                    const select = document.getElementById('tipoPermiso');
+                    select.innerHTML = '<option value="">Seleccionar...</option>' + 
+                        tipos.map(tipo => `<option value="${tipo.codigo}">${tipo.nombre} (${tipo.codigo})</option>`).join('');
+                }
+            } catch (error) {
+                console.error('Error cargando tipos:', error);
+            }
+        }
+
+        function nuevasolición() {
+            const modal = new bootstrap.Modal(document.getElementById('modalNuevaSolicitud'));
+            modal.show();
+        }
+
+        async function enviarSolicitud() {
+            const tipo = document.getElementById('tipoPermiso').value;
+            const fecha = document.getElementById('fechaPermiso').value;
+            const motivo = document.getElementById('motivoPermiso').value.trim();
+
+            if (!tipo || !fecha || !motivo) {
+                alert('Por favor completa todos los campos');
+                return;
+            }
+
+            if (motivo.length < 10) {
+                alert('El motivo debe tener al menos 10 caracteres');
+                return;
+            }
+
+            try {
+                const response = await fetch('/api/solicitudes-empleado/crear', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify({
+                        tipo_permiso: tipo,
+                        fecha_solicitud: fecha,
+                        motivo: motivo,
+                        observaciones: ''
+                    })
+                });
+
+                if (response.ok) {
+                    alert('¡Solicitud enviada exitosamente!');
+                    
+                    // Cerrar modal y limpiar formulario
+                    bootstrap.Modal.getInstance(document.getElementById('modalNuevaSolicitud')).hide();
+                    document.getElementById('formSolicitud').reset();
+                    
+                    // Recargar permisos
+                    cargarPermisos();
+                } else {
+                    const error = await response.json();
+                    alert('Error: ' + (error.error || 'No se pudo enviar la solicitud'));
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                alert('Error de conexión al enviar solicitud');
+            }
+        }
+
+        function logout() {
+            if (confirm('¿Seguro que quieres salir?')) {
+                localStorage.clear();
+                sessionStorage.clear();
+                window.location.href = '/login_simple.html';
+            }
+        }
+    </script>
+</body>
+</html>
