@@ -77,6 +77,28 @@ app.get('/api/health', (req, res) => {
     });
 });
 
+// Test completamente básico - SIN autenticación ni Supabase
+app.get('/api/test-basic', (req, res) => {
+    console.log('🟢 TEST BÁSICO EJECUTADO');
+    res.json({ 
+        status: 'ok', 
+        message: 'Función serverless funciona correctamente',
+        timestamp: new Date().toISOString()
+    });
+});
+
+// Test POST básico - SIN autenticación ni Supabase
+app.post('/api/test-post', (req, res) => {
+    console.log('🟢 TEST POST EJECUTADO');
+    console.log('🟢 Body recibido:', req.body);
+    res.json({ 
+        status: 'ok', 
+        message: 'POST funciona correctamente',
+        received: req.body,
+        timestamp: new Date().toISOString()
+    });
+});
+
 // Endpoint de prueba para crear solicitud (simple)
 app.post('/api/solicitudes-empleado/crear-test', verifyToken, async (req, res) => {
     try {
@@ -433,136 +455,38 @@ app.get('/api/solicitudes-empleado/tipos-permisos', verifyToken, async (req, res
     }
 });
 
-// Endpoint para crear solicitudes de permiso
+// Endpoint para crear solicitudes de permiso - VERSION SIMPLIFICADA TEMPORAL
 app.post('/api/solicitudes-empleado/crear', verifyToken, async (req, res) => {
     try {
-        console.log('🎯 === CREAR SOLICITUD ===');
+        console.log('🎯 === CREAR SOLICITUD SIMPLIFICADA ===');
         console.log('🎯 Usuario:', req.user);
         console.log('🎯 Body:', req.body);
         
+        // Solo validación básica por ahora
         if (req.user.type !== 'empleado') {
-            console.log('❌ Acceso denegado - tipo usuario:', req.user.type);
             return res.status(403).json({ error: 'Acceso denegado' });
         }
 
-        if (!supabase) {
-            console.log('❌ Supabase no configurado');
-            return res.status(500).json({ error: 'Base de datos no configurada' });
-        }
-
-        const { tipo_permiso_id, fecha_inicio, fecha_fin, motivo, observaciones } = req.body;
+        // RESPUESTA TEMPORAL SIN BASE DE DATOS
+        console.log('✅ Simulando creación exitosa');
         
-        console.log('📝 Datos recibidos:', { tipo_permiso_id, fecha_inicio, fecha_fin, motivo, observaciones });
-        
-        if (!tipo_permiso_id || !fecha_inicio || !motivo) {
-            console.log('❌ Validación fallida - campos requeridos');
-            return res.status(400).json({ error: 'Tipo de permiso, fecha de inicio y motivo son requeridos' });
-        }
-
-        // Validar que la fecha sea futura
-        const fechaPermiso = new Date(fecha_inicio);
-        const hoy = new Date();
-        hoy.setHours(0, 0, 0, 0);
-        
-        console.log('📅 Validando fecha:', { fechaPermiso, hoy });
-        
-        if (fechaPermiso < hoy) {
-            console.log('❌ Fecha inválida - debe ser futura');
-            return res.status(400).json({ error: 'La fecha del permiso debe ser futura' });
-        }
-
-        // Validar que tipo_permiso_id sea un número válido
-        const tipoPermisoIdNum = parseInt(tipo_permiso_id);
-        if (isNaN(tipoPermisoIdNum)) {
-            console.log('❌ ID tipo permiso inválido:', tipo_permiso_id);
-            return res.status(400).json({ error: 'ID de tipo de permiso inválido' });
-        }
-
-        console.log('🔍 Consultando tipo de permiso:', tipoPermisoIdNum);
-
-        // Verificar que el tipo de permiso existe
-        let tipoPermisoData, tipoError;
-        try {
-            console.log('🔍 Intentando consultar Supabase...');
-            const result = await supabase
-                .from('tipos_permisos')
-                .select('*')
-                .eq('id', tipoPermisoIdNum)
-                .eq('activo', true)
-                .single();
-            
-            tipoPermisoData = result.data;
-            tipoError = result.error;
-            console.log('🔍 Resultado Supabase:', { data: tipoPermisoData, error: tipoError });
-        } catch (supabaseError) {
-            console.error('💥 Error en consulta Supabase:', supabaseError);
-            return res.status(500).json({ 
-                error: 'Error en consulta a base de datos: ' + supabaseError.message,
-                details: supabaseError
-            });
-        }
-        
-        if (tipoError) {
-            console.error('❌ Error consultando tipo permiso:', tipoError);
-            return res.status(400).json({ error: 'Error consultando tipo de permiso: ' + tipoError.message });
-        }
-        
-        if (!tipoPermisoData) {
-            console.log('❌ Tipo de permiso no encontrado');
-            return res.status(400).json({ error: 'Tipo de permiso no encontrado' });
-        }
-
-        console.log('✅ Tipo de permiso encontrado:', tipoPermisoData);
-
-        // Preparar datos para inserción
-        const solicitudData = {
-            empleado_id: req.user.id,
-            tipo_permiso_id: tipoPermisoIdNum,
-            fecha_desde: fecha_inicio,
-            fecha_hasta: fecha_fin || fecha_inicio,
-            motivo: motivo,
-            observaciones: observaciones || null,
-            estado: 'PENDIENTE',
-            created_at: new Date().toISOString()
-        };
-
-        console.log('📝 Datos para inserción:', solicitudData);
-
-        // Crear solicitud
-        const { data: solicitud, error: createError } = await supabase
-            .from('solicitudes_permisos')
-            .insert(solicitudData)
-            .select()
-            .single();
-
-        if (createError) {
-            console.error('❌ Error creando solicitud:', createError);
-            return res.status(500).json({ 
-                error: 'Error creando solicitud: ' + createError.message,
-                details: createError
-            });
-        }
-
-        console.log('✅ Solicitud creada exitosamente:', solicitud);
-
         res.status(201).json({
             success: true,
-            message: 'Solicitud creada exitosamente. Se ha notificado al supervisor.',
+            message: 'Solicitud simulada creada exitosamente (modo debug)',
             data: {
-                id: solicitud.id,
-                tipo_permiso_id: tipoPermisoIdNum,
-                tipo_permiso_nombre: tipoPermisoData.nombre,
-                fecha_inicio,
-                fecha_fin: fecha_fin || fecha_inicio,
-                motivo,
+                id: Date.now(),
+                tipo_permiso_id: req.body.tipo_permiso_id,
+                fecha_inicio: req.body.fecha_inicio,
+                fecha_fin: req.body.fecha_fin || req.body.fecha_inicio,
+                motivo: req.body.motivo,
                 estado: 'PENDIENTE'
             }
         });
 
     } catch (error) {
-        console.error('💥 Error general creando solicitud:', error);
+        console.error('💥 Error:', error);
         res.status(500).json({ 
-            error: 'Error interno del servidor: ' + error.message,
+            error: 'Error: ' + error.message,
             stack: error.stack
         });
     }
