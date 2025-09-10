@@ -68,8 +68,50 @@ app.get('/api/health', (req, res) => {
     res.json({ 
         status: 'ok', 
         timestamp: new Date().toISOString(),
-        supabase: !!supabase 
+        supabase: !!supabase,
+        env_vars: {
+            supabase_url: !!process.env.SUPABASE_URL,
+            supabase_key: !!process.env.SUPABASE_ANON_KEY,
+            jwt_secret: !!process.env.JWT_SECRET
+        }
     });
+});
+
+// Endpoint de prueba para crear solicitud (simple)
+app.post('/api/solicitudes-empleado/crear-test', verifyToken, async (req, res) => {
+    try {
+        console.log('🧪 === TEST CREAR SOLICITUD ===');
+        console.log('🧪 Supabase disponible:', !!supabase);
+        console.log('🧪 Usuario:', req.user);
+        console.log('🧪 Body:', req.body);
+        
+        if (!supabase) {
+            console.log('❌ Supabase no está configurado');
+            return res.status(500).json({ 
+                error: 'Base de datos no configurada',
+                env_check: {
+                    supabase_url: !!process.env.SUPABASE_URL,
+                    supabase_key: !!process.env.SUPABASE_ANON_KEY
+                }
+            });
+        }
+        
+        // Test simple: solo devolver los datos sin insertar
+        res.json({
+            success: true,
+            message: 'Test exitoso - endpoint funciona',
+            received_data: req.body,
+            user: req.user,
+            supabase_status: 'connected'
+        });
+        
+    } catch (error) {
+        console.error('💥 Error en test:', error);
+        res.status(500).json({ 
+            error: 'Error en test: ' + error.message,
+            stack: error.stack 
+        });
+    }
 });
 
 // Ruta de verificar RUT empleado
@@ -439,12 +481,26 @@ app.post('/api/solicitudes-empleado/crear', verifyToken, async (req, res) => {
         console.log('🔍 Consultando tipo de permiso:', tipoPermisoIdNum);
 
         // Verificar que el tipo de permiso existe
-        const { data: tipoPermisoData, error: tipoError } = await supabase
-            .from('tipos_permisos')
-            .select('*')
-            .eq('id', tipoPermisoIdNum)
-            .eq('activo', true)
-            .single();
+        let tipoPermisoData, tipoError;
+        try {
+            console.log('🔍 Intentando consultar Supabase...');
+            const result = await supabase
+                .from('tipos_permisos')
+                .select('*')
+                .eq('id', tipoPermisoIdNum)
+                .eq('activo', true)
+                .single();
+            
+            tipoPermisoData = result.data;
+            tipoError = result.error;
+            console.log('🔍 Resultado Supabase:', { data: tipoPermisoData, error: tipoError });
+        } catch (supabaseError) {
+            console.error('💥 Error en consulta Supabase:', supabaseError);
+            return res.status(500).json({ 
+                error: 'Error en consulta a base de datos: ' + supabaseError.message,
+                details: supabaseError
+            });
+        }
         
         if (tipoError) {
             console.error('❌ Error consultando tipo permiso:', tipoError);
