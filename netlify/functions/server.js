@@ -300,6 +300,11 @@ app.get('/api/solicitudes-empleado/dashboard', verifyToken, async (req, res) => 
             rechazadas: 0
         };
 
+        // Determinar permisos de usuario
+        const empleadoNombre = empleado.nombre.toUpperCase();
+        const esAdministrador = empleadoNombre.includes('RONNY') || empleadoNombre.includes('PATRICIO BRAVO');
+        const esSupervisor = !esAdministrador && empleado.supervisor; // Supervisores que no son administradores
+        
         res.json({
             success: true,
             data: {
@@ -311,6 +316,12 @@ app.get('/api/solicitudes-empleado/dashboard', verifyToken, async (req, res) => 
                     supervisor: empleado.supervisor || empleado.visualizacion || 'No asignado',
                     fecha_ingreso: empleado.fecha_ingreso,
                     horas_semanales: empleado.horas_semanales
+                },
+                permisos_usuario: {
+                    es_administrador: esAdministrador,
+                    es_supervisor: esSupervisor,
+                    puede_aprobar: esAdministrador, // Solo administradores pueden aprobar
+                    puede_ver_subordinados: esAdministrador || esSupervisor
                 },
                 estadisticas,
                 permisos_utilizados: {

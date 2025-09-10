@@ -459,7 +459,7 @@
                             <p class="mb-0">Portal de Empleado - Sistema de Permisos</p>
                         </div>
                         <div>
-                            <button class="btn btn-warning me-2" onclick="window.open('aprobar.html', '_blank')">
+                            <button id="btnAdmin" class="btn btn-warning me-2" onclick="window.open('admin_dashboard.html', '_blank')" style="display: none;">
                                 <i class="fas fa-user-cog"></i> Admin
                             </button>
                             <button class="btn btn-outline-light" onclick="cerrarSesion()">
@@ -937,6 +937,10 @@
                     empleadoInfo = data.data.empleado;
                     actualizarBalancePermisos(data.data.empleado, data.data.permisos_utilizados);
                     mostrarDatosPersonales(data.data.empleado);
+                    
+                    // Manejar permisos del usuario y botón de administrador
+                    manejarPermisosUsuario(data.data.permisos_usuario);
+                    
                     return data;
                 } else {
                     throw new Error(data.error || 'Error al cargar dashboard');
@@ -1479,6 +1483,22 @@
         function actualizarDashboard() {
             mostrarToast('info', 'Actualizando dashboard...');
             cargarDashboardCompleto();
+        }
+        
+        function manejarPermisosUsuario(permisos) {
+            const btnAdmin = document.getElementById('btnAdmin');
+            
+            if (permisos && permisos.puede_aprobar) {
+                // Solo Ronny y Patricio Bravo pueden ver el botón de administrador
+                btnAdmin.style.display = 'inline-block';
+                console.log('Usuario autorizado para administración:', permisos);
+            } else {
+                // Ocultar botón para todos los demás (empleados regulares y supervisores)
+                btnAdmin.style.display = 'none';
+            }
+            
+            // Guardar permisos para usar en otras funciones si es necesario
+            window.permisosUsuario = permisos;
         }
         
         function cerrarSesion() {
