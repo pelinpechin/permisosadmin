@@ -6,7 +6,6 @@ const helmet = require('helmet');
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
 const crypto = require('crypto');
-const nodemailer = require('nodemailer');
 
 // Crear la aplicación Express
 const app = express();
@@ -25,7 +24,7 @@ const JWT_SECRET = process.env.JWT_SECRET || 'clave_super_secreta_permisos_admin
 const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY;
 
-// Configurar Supabase solo si las variables están disponibles
+// Configurar Supabase
 let supabase = null;
 if (SUPABASE_URL && SUPABASE_ANON_KEY) {
     try {
@@ -36,57 +35,19 @@ if (SUPABASE_URL && SUPABASE_ANON_KEY) {
     }
 }
 
-// Configurar nodemailer
-const transporter = nodemailer.createTransport({
-    host: process.env.SMTP_HOST || 'smtp.gmail.com',
-    port: process.env.SMTP_PORT || 587,
-    secure: false,
-    auth: {
-        user: process.env.SMTP_USER,
-        pass: process.env.SMTP_PASS
-    }
-});
-
-// Función helper para ejecutar queries en Supabase
-async function executeQuery(operation, table, data = null, filters = null) {
-    if (!supabase) {
-        throw new Error('Supabase no está configurado');
-    }
-
-    try {
-        let query = supabase.from(table);
-
-        switch (operation) {
-            case 'select':
-                if (filters) {
-                    Object.keys(filters).forEach(key => {
-                        query = query.eq(key, filters[key]);
-                    });
-                }
-                const { data: selectData, error: selectError } = await query.select('*');
-                if (selectError) throw selectError;
-                return selectData;
-
-            case 'insert':
-                const { data: insertData, error: insertError } = await query.insert(data);
-                if (insertError) throw insertError;
-                return insertData;
-
-            case 'update':
-                const { data: updateData, error: updateError } = await query
-                    .update(data)
-                    .eq('id', filters.id);
-                if (updateError) throw updateError;
-                return updateData;
-
-            default:
-                throw new Error(`Operación no soportada: ${operation}`);
-        }
-    } catch (error) {
-        console.error(`Error en ${operation} ${table}:`, error);
-        throw error;
-    }
+// Función helper para normalizar RUT
+function normalizarRUT(rut) {
+    return rut.replace(/\./g, '').replace(/-/g, '');
 }
+
+// Ruta de health check
+app.get('/api/health', (req, res) => {
+    res.json({ 
+        status: 'ok', 
+        timestamp: new Date().toISOString(),
+        supabase: !!supabase 
+    });
+});
 
 // Ruta de verificar RUT empleado
 app.post('/api/empleados-auth/verificar-rut', async (req, res) => {
@@ -97,11 +58,25 @@ app.post('/api/empleados-auth/verificar-rut', async (req, res) => {
             return res.status(400).json({ error: 'RUT es requerido' });
         }
 
-        const rutNormalizado = rut.replace(/\./g, '').replace(/-/g, '');
+        if (!supabase) {
+            return res.status(500).json({ error: 'Base de datos no configurada' });
+        }
+
+        const rutNormalizado = normalizarRUT(rut);
         
-        const empleados = await executeQuery('select', 'empleados', null, { activo: true });
+        // Consultar empleados activos
+        const { data: empleados, error } = await supabase
+            .from('empleados')
+            .select('*')
+            .eq('activo', true);
+        
+        if (error) {
+            console.error('Error consultando empleados:', error);
+            return res.status(500).json({ error: 'Error consultando base de datos' });
+        }
+        
         const empleado = empleados.find(emp => 
-            emp.rut.replace(/\./g, '').replace(/-/g, '') === rutNormalizado
+            normalizarRUT(emp.rut) === rutNormalizado
         );
 
         if (!empleado) {
@@ -135,11 +110,25 @@ app.post('/api/empleados-auth/login', async (req, res) => {
             return res.status(400).json({ error: 'RUT y contraseña son requeridos' });
         }
 
-        const rutNormalizado = rut.replace(/\./g, '').replace(/-/g, '');
+        if (!supabase) {
+            return res.status(500).json({ error: 'Base de datos no configurada' });
+        }
+
+        const rutNormalizado = normalizarRUT(rut);
         
-        const empleados = await executeQuery('select', 'empleados', null, { activo: true });
+        // Consultar empleados activos
+        const { data: empleados, error } = await supabase
+            .from('empleados')
+            .select('*')
+            .eq('activo', true);
+        
+        if (error) {
+            console.error('Error consultando empleados:', error);
+            return res.status(500).json({ error: 'Error consultando base de datos' });
+        }
+        
         const empleado = empleados.find(emp => 
-            emp.rut.replace(/\./g, '').replace(/-/g, '') === rutNormalizado
+            normalizarRUT(emp.rut) === rutNormalizado
         );
 
         if (!empleado) {
@@ -193,11 +182,25 @@ app.post('/api/empleados-auth/solicitar-reset', async (req, res) => {
             return res.status(400).json({ error: 'RUT y email son requeridos' });
         }
 
-        const rutNormalizado = rut.replace(/\./g, '').replace(/-/g, '');
+        if (!supabase) {
+            return res.status(500).json({ error: 'Base de datos no configurada' });
+        }
+
+        const rutNormalizado = normalizarRUT(rut);
         
-        const empleados = await executeQuery('select', 'empleados', null, { activo: true });
+        // Consultar empleados activos
+        const { data: empleados, error } = await supabase
+            .from('empleados')
+            .select('*')
+            .eq('activo', true);
+        
+        if (error) {
+            console.error('Error consultando empleados:', error);
+            return res.status(500).json({ error: 'Error consultando base de datos' });
+        }
+        
         const empleado = empleados.find(emp => 
-            emp.rut.replace(/\./g, '').replace(/-/g, '') === rutNormalizado && 
+            normalizarRUT(emp.rut) === rutNormalizado && 
             emp.email === email
         );
 
@@ -210,69 +213,35 @@ app.post('/api/empleados-auth/solicitar-reset', async (req, res) => {
         const fechaExpiracion = new Date(Date.now() + 3600000); // 1 hora
 
         // Actualizar empleado con token de reset
-        await executeQuery('update', 'empleados', {
-            token_reset: tokenReset,
-            reset_expiracion: fechaExpiracion.toISOString()
-        }, { id: empleado.id });
+        const { error: updateError } = await supabase
+            .from('empleados')
+            .update({
+                token_reset: tokenReset,
+                reset_expiracion: fechaExpiracion.toISOString()
+            })
+            .eq('id', empleado.id);
 
-        // Si no hay configuración SMTP, simular envío exitoso
-        if (!process.env.SMTP_USER || !process.env.SMTP_PASS) {
-            console.log('EMAIL SIMULADO - Token de reset:', tokenReset);
-            console.log('EMAIL SIMULADO - Para:', email);
-            return res.json({
-                success: true,
-                message: 'Se ha enviado un enlace de recuperación a tu email (modo demo)'
-            });
+        if (updateError) {
+            console.error('Error actualizando token:', updateError);
+            return res.status(500).json({ error: 'Error actualizando información' });
         }
 
-        // Enviar email real
-        const resetUrl = `${process.env.URL || 'https://permisosadministrativos.netlify.app'}/reset-password.html?token=${tokenReset}`;
-        
-        const mailOptions = {
-            from: process.env.SMTP_USER,
-            to: email,
-            subject: 'Recuperación de Contraseña - Sistema de Permisos',
-            html: `
-                <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-                    <h2 style="color: #667eea;">Recuperación de Contraseña</h2>
-                    <p>Hola <strong>${empleado.nombre}</strong>,</p>
-                    <p>Has solicitado restablecer tu contraseña en el Sistema de Permisos Administrativos.</p>
-                    <p>Haz clic en el siguiente enlace para crear una nueva contraseña:</p>
-                    <div style="text-align: center; margin: 30px 0;">
-                        <a href="${resetUrl}" style="background: linear-gradient(45deg, #667eea, #764ba2); color: white; padding: 15px 30px; text-decoration: none; border-radius: 25px; display: inline-block;">
-                            Restablecer Contraseña
-                        </a>
-                    </div>
-                    <p><strong>Este enlace expira en 1 hora.</strong></p>
-                    <p>Si no puedes hacer clic en el enlace, copia y pega la siguiente URL en tu navegador:</p>
-                    <p style="word-break: break-all; color: #666; background: #f5f5f5; padding: 10px; border-radius: 5px;">${resetUrl}</p>
-                    <p style="color: #999; font-size: 12px;">Si no solicitaste este cambio, puedes ignorar este email.</p>
-                    <hr>
-                    <p style="color: #666; font-size: 12px;">Sistema de Permisos Administrativos</p>
-                </div>
-            `
-        };
-
-        await transporter.sendMail(mailOptions);
+        // Simular envío de email exitoso (sin SMTP configurado)
+        console.log('EMAIL SIMULADO - Token de reset:', tokenReset);
+        console.log('EMAIL SIMULADO - Para:', email);
+        console.log('EMAIL SIMULADO - Empleado:', empleado.nombre);
         
         res.json({
             success: true,
-            message: 'Se ha enviado un enlace de recuperación a tu email'
+            message: 'Se ha enviado un enlace de recuperación a tu email (modo demo)',
+            // En desarrollo, devolver el token para testing
+            ...(process.env.NODE_ENV !== 'production' && { debug_token: tokenReset })
         });
         
     } catch (error) {
         console.error('Error en solicitar-reset:', error);
         res.status(500).json({ error: 'Error interno del servidor' });
     }
-});
-
-// Ruta de health check
-app.get('/api/health', (req, res) => {
-    res.json({ 
-        status: 'ok', 
-        timestamp: new Date().toISOString(),
-        supabase: !!supabase 
-    });
 });
 
 // Manejo de errores 404
