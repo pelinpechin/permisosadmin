@@ -1206,8 +1206,7 @@ app.post('/api/solicitudes-empleado/aprobar-supervisor/:id', verifyToken, async 
         console.log('👁️ === APROBACION SUPERVISOR ===');
         console.log('👁️ Usuario:', req.user);
         
-        const supervisorNombre = req.user.nombre || '';
-        const nombre = supervisorNombre.toLowerCase();
+        const nombre = (req.user.nombre || '').toLowerCase();
         
         // Determinar el tipo de supervisor
         const esAutoridad = nombre.includes('ronny') || nombre.includes('cisterna') || 
@@ -1224,7 +1223,7 @@ app.post('/api/solicitudes-empleado/aprobar-supervisor/:id', verifyToken, async 
         const { id } = req.params;
         const { observaciones } = req.body;
         const supervisorId = req.user.id;
-        const supervisorNombre = req.user.nombre;
+        const supervisorNombreActual = req.user.nombre;
 
         // Obtener la solicitud
         const { data: solicitud, error: solicitudError } = await supabase
@@ -1242,7 +1241,7 @@ app.post('/api/solicitudes-empleado/aprobar-supervisor/:id', verifyToken, async 
         }
 
         // TEMPORAL: Permitir aprobación para supervisores conocidos
-        const supervisorNombreLower = supervisorNombre.toLowerCase();
+        const supervisorNombreLower = supervisorNombreActual.toLowerCase();
         const supervisoresPermitidos = ['andrea', 'ronny', 'cisterna', 'patricio', 'bravo'];
         
         const esSupervisorValido = supervisoresPermitidos.some(supervisor => 
