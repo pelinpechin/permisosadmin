@@ -134,6 +134,57 @@ app.get('/api/debug/empleados', async (req, res) => {
     }
 });
 
+// TEMPORAL: Endpoint para crear solicitud directamente en la base de datos
+app.post('/api/debug/crear-solicitud-directa', async (req, res) => {
+    try {
+        if (!supabase) {
+            return res.status(500).json({ error: 'Base de datos no configurada' });
+        }
+
+        const { empleado_id, tipo_permiso_id, fecha_desde, motivo } = req.body;
+        
+        if (!empleado_id || !tipo_permiso_id || !fecha_desde || !motivo) {
+            return res.status(400).json({ error: 'Faltan campos requeridos' });
+        }
+
+        console.log('🧪 Creando solicitud directamente en la base de datos...');
+        console.log('Datos:', { empleado_id, tipo_permiso_id, fecha_desde, motivo });
+
+        const solicitud = {
+            empleado_id,
+            tipo_permiso_id,
+            fecha_desde,
+            fecha_hasta: fecha_desde, // Mismo día por defecto
+            motivo,
+            estado: 'PENDIENTE',
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString()
+        };
+
+        const { data, error } = await supabase
+            .from('solicitudes_permisos')
+            .insert([solicitud])
+            .select();
+
+        if (error) {
+            console.error('Error insertando solicitud:', error);
+            return res.status(500).json({ error: 'Error insertando solicitud: ' + error.message });
+        }
+
+        console.log('✅ Solicitud creada directamente:', data[0]);
+
+        res.json({
+            success: true,
+            message: 'Solicitud creada directamente en la base de datos',
+            solicitud: data[0]
+        });
+
+    } catch (error) {
+        console.error('Error en crear solicitud directa:', error);
+        res.status(500).json({ error: 'Error interno: ' + error.message });
+    }
+});
+
 // Endpoint de prueba para crear solicitud (simple)
 app.post('/api/solicitudes-empleado/crear-test', verifyToken, async (req, res) => {
     try {
