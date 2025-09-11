@@ -268,15 +268,15 @@ app.post('/api/empleados-auth/crear-password', async (req, res) => {
         console.log('🔐 Body completo:', req.body);
         console.log('🔐 Content-Type:', req.headers['content-type']);
         
-        const { rut, password } = req.body;
+        const { rut, empleadoId, password } = req.body;
         
-        console.log('🔐 Datos extraídos - RUT:', rut, 'Password length:', password ? password.length : 'undefined');
+        console.log('🔐 Datos extraídos - RUT:', rut, 'EmpleadoID:', empleadoId, 'Password length:', password ? password.length : 'undefined');
         
-        if (!rut) {
-            console.log('❌ RUT faltante');
+        if (!rut && !empleadoId) {
+            console.log('❌ RUT o EmpleadoID faltante');
             return res.status(400).json({ 
-                error: 'RUT es requerido',
-                received: { rut: rut, hasPassword: !!password }
+                error: 'RUT o EmpleadoID es requerido',
+                received: { rut: rut, empleadoId: empleadoId, hasPassword: !!password }
             });
         }
         
@@ -300,46 +300,76 @@ app.post('/api/empleados-auth/crear-password', async (req, res) => {
             return res.status(500).json({ error: 'Base de datos no configurada' });
         }
 
-        const rutNormalizado = normalizarRUT(rut);
-        console.log('🔐 RUT normalizado:', rutNormalizado);
+        let empleado = null;
         
-        // Consultar empleados activos con manejo de errores mejorado
-        let empleados;
-        try {
-            const { data, error } = await supabase
-                .from('empleados')
-                .select('*')
-                .eq('activo', true);
+        // Buscar por EmpleadoID (más directo) o por RUT
+        if (empleadoId) {
+            console.log('🔐 Buscando por EmpleadoID:', empleadoId);
             
-            if (error) {
-                console.error('❌ Error Supabase consultando empleados:', error);
+            try {
+                const { data, error } = await supabase
+                    .from('empleados')
+                    .select('*')
+                    .eq('id', empleadoId)
+                    .eq('activo', true)
+                    .single();
+                
+                if (error) {
+                    console.error('❌ Error Supabase consultando por ID:', error);
+                    return res.status(500).json({ 
+                        error: 'Error consultando empleado por ID: ' + error.message,
+                        details: error
+                    });
+                }
+                
+                empleado = data;
+                console.log('🔐 Empleado encontrado por ID:', empleado ? empleado.nombre : 'No encontrado');
+                
+            } catch (supabaseError) {
+                console.error('❌ Error de conexión Supabase por ID:', supabaseError);
                 return res.status(500).json({ 
-                    error: 'Error consultando base de datos: ' + error.message,
-                    details: error
+                    error: 'Error de conexión consultando por ID: ' + supabaseError.message 
                 });
             }
             
-            empleados = data;
-            console.log('🔐 Empleados encontrados:', empleados ? empleados.length : 0);
+        } else if (rut) {
+            console.log('🔐 Buscando por RUT');
+            const rutNormalizado = normalizarRUT(rut);
+            console.log('🔐 RUT normalizado:', rutNormalizado);
             
-        } catch (supabaseError) {
-            console.error('❌ Error de conexión Supabase:', supabaseError);
-            return res.status(500).json({ 
-                error: 'Error de conexión a la base de datos: ' + supabaseError.message 
-            });
+            try {
+                const { data: empleados, error } = await supabase
+                    .from('empleados')
+                    .select('*')
+                    .eq('activo', true);
+                
+                if (error) {
+                    console.error('❌ Error Supabase consultando empleados:', error);
+                    return res.status(500).json({ 
+                        error: 'Error consultando base de datos: ' + error.message,
+                        details: error
+                    });
+                }
+                
+                empleado = empleados.find(emp => 
+                    normalizarRUT(emp.rut) === rutNormalizado
+                );
+                
+                console.log('🔐 Empleado encontrado por RUT:', empleado ? empleado.nombre : 'No encontrado');
+                
+            } catch (supabaseError) {
+                console.error('❌ Error de conexión Supabase por RUT:', supabaseError);
+                return res.status(500).json({ 
+                    error: 'Error de conexión consultando por RUT: ' + supabaseError.message 
+                });
+            }
         }
-        
-        const empleado = empleados.find(emp => 
-            normalizarRUT(emp.rut) === rutNormalizado
-        );
-
-        console.log('🔐 Empleado encontrado:', empleado ? empleado.nombre : 'No encontrado');
 
         if (!empleado) {
-            console.log('❌ Empleado no encontrado con RUT:', rutNormalizado);
+            console.log('❌ Empleado no encontrado');
             return res.status(404).json({ 
                 error: 'Empleado no encontrado o inactivo',
-                rut_buscado: rutNormalizado
+                buscado_por: empleadoId ? 'ID: ' + empleadoId : 'RUT: ' + rut
             });
         }
 
