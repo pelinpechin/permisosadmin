@@ -27,8 +27,8 @@ app.use((req, res, next) => {
 
 // Variables de entorno
 const JWT_SECRET = process.env.JWT_SECRET || 'clave_super_secreta_permisos_admin_chile_2025';
-const SUPABASE_URL = process.env.SUPABASE_URL;
-const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY;
+const SUPABASE_URL = process.env.SUPABASE_URL || 'https://kxdrtufgjrfnksylvtnh.supabase.co';
+const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imt4ZHJ0dWZnanJmbmtzeWx2dG5oIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzY4ODA5NDMsImV4cCI6MjA1MjQ1Njk0M30.5FNaYqHUjrU9TYOzRy4FrDbm6JOFmYoxNV7xRLa4ysI';
 
 // Configurar Supabase
 let supabase = null;
