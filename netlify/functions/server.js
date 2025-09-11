@@ -197,32 +197,50 @@ app.post('/api/empleados-auth/verificar-rut', async (req, res) => {
 // Ruta de login empleado
 app.post('/api/empleados-auth/login', async (req, res) => {
     try {
+        console.log('🔐 === LOGIN ATTEMPT ===');
+        console.log('Body:', req.body);
+        
         const { rut, password } = req.body;
         
         if (!rut || !password) {
             return res.status(400).json({ error: 'RUT y contraseña son requeridos' });
         }
 
+        console.log('🔍 Checking Supabase connection...');
         if (!supabase) {
+            console.log('❌ Supabase no disponible');
             return res.status(500).json({ error: 'Base de datos no configurada' });
         }
 
         const rutNormalizado = normalizarRUT(rut);
+        console.log('🔍 RUT normalizado:', rutNormalizado);
         
-        // Consultar empleados activos
-        const { data: empleados, error } = await supabase
-            .from('empleados')
-            .select('*')
-            .eq('activo', true);
-        
-        if (error) {
-            console.error('Error consultando empleados:', error);
-            return res.status(500).json({ error: 'Error consultando base de datos' });
+        // Consultar empleados activos con manejo de errores mejorado
+        console.log('🔍 Consultando empleados...');
+        let empleados;
+        try {
+            const result = await supabase
+                .from('empleados')
+                .select('*')
+                .eq('activo', true);
+                
+            if (result.error) {
+                console.error('❌ Error Supabase:', result.error);
+                return res.status(500).json({ error: 'Error consultando base de datos' });
+            }
+            
+            empleados = result.data;
+            console.log('✅ Empleados obtenidos:', empleados ? empleados.length : 0);
+        } catch (supabaseError) {
+            console.error('❌ Excepción Supabase:', supabaseError);
+            return res.status(500).json({ error: 'Error de conexión con base de datos' });
         }
         
         const empleado = empleados.find(emp => 
             normalizarRUT(emp.rut) === rutNormalizado
         );
+
+        console.log('🔍 Empleado encontrado:', empleado ? empleado.nombre : 'No encontrado');
 
         if (!empleado) {
             return res.status(401).json({ error: 'Credenciales inválidas' });
@@ -232,7 +250,16 @@ app.post('/api/empleados-auth/login', async (req, res) => {
             return res.status(401).json({ error: 'Cuenta no activada. Contacte al administrador.' });
         }
 
-        const passwordValid = await bcrypt.compare(password, empleado.password_hash);
+        console.log('🔍 Validando contraseña...');
+        let passwordValid = false;
+        try {
+            passwordValid = await bcrypt.compare(password, empleado.password_hash);
+            console.log('✅ Contraseña válida:', passwordValid);
+        } catch (bcryptError) {
+            console.error('❌ Error bcrypt:', bcryptError);
+            return res.status(500).json({ error: 'Error validando credenciales' });
+        }
+        
         if (!passwordValid) {
             return res.status(401).json({ error: 'Credenciales inválidas' });
         }
