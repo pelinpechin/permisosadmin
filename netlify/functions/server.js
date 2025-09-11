@@ -704,14 +704,37 @@ app.post('/api/empleados-auth/login', async (req, res) => {
             return res.status(401).json({ error: 'Credenciales inválidas' });
         }
 
-        if (!empleado.password_hash) {
+        // Buscar usuario asociado al empleado en tabla usuarios
+        console.log('🔍 Buscando usuario para empleado ID:', empleado.id);
+        let usuario;
+        try {
+            const { data: usuarioData, error: usuarioError } = await supabase
+                .from('usuarios')
+                .select('password_hash, username, activo')
+                .eq('empleado_id', empleado.id)
+                .eq('activo', true)
+                .single();
+                
+            if (usuarioError) {
+                console.error('❌ Error buscando usuario:', usuarioError);
+                return res.status(401).json({ error: 'Cuenta no encontrada' });
+            }
+            
+            usuario = usuarioData;
+            console.log('✅ Usuario encontrado:', usuario.username);
+        } catch (error) {
+            console.error('❌ Error obteniendo usuario:', error);
+            return res.status(401).json({ error: 'Error de autenticación' });
+        }
+
+        if (!usuario || !usuario.password_hash) {
             return res.status(401).json({ error: 'Cuenta no activada. Contacte al administrador.' });
         }
 
         console.log('🔍 Validando contraseña...');
         let passwordValid = false;
         try {
-            passwordValid = await bcrypt.compare(password, empleado.password_hash);
+            passwordValid = await bcrypt.compare(password, usuario.password_hash);
             console.log('✅ Contraseña válida:', passwordValid);
         } catch (bcryptError) {
             console.error('❌ Error bcrypt:', bcryptError);
