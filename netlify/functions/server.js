@@ -134,98 +134,54 @@ app.get('/api/debug/empleados', async (req, res) => {
     }
 });
 
-// NUEVO: Endpoint simplificado para crear solicitudes (reemplazo funcional)
-app.post('/api/solicitudes-empleado/crear-simple', verifyToken, async (req, res) => {
+// TEMPORAL: Endpoint para crear solicitudes de prueba directamente
+app.post('/api/test/crear-solicitud-francisco', async (req, res) => {
     try {
-        console.log('🎯 === CREAR SOLICITUD SIMPLIFICADA ===');
-        console.log('Usuario:', req.user);
-        console.log('Body:', req.body);
-
-        if (req.user.type !== 'empleado') {
-            return res.status(403).json({ error: 'Acceso denegado' });
-        }
-
+        console.log('🧪 === CREANDO SOLICITUD DE PRUEBA PARA FRANCISCO ===');
+        
         if (!supabase) {
             return res.status(500).json({ error: 'Base de datos no configurada' });
         }
 
-        const { tipo_permiso_id, fecha_inicio, motivo } = req.body;
-        
-        if (!tipo_permiso_id || !fecha_inicio || !motivo) {
-            return res.status(400).json({ error: 'Tipo de permiso, fecha de inicio y motivo son requeridos' });
-        }
-
-        // Crear solicitud con estructura simple
+        // Datos de prueba para Francisco (ID: 67)
         const solicitudData = {
-            empleado_id: req.user.id,
-            tipo_permiso_id: parseInt(tipo_permiso_id),
-            fecha_desde: fecha_inicio,
-            fecha_hasta: fecha_inicio, // Mismo día por defecto
-            motivo: motivo.substring(0, 500), // Limitar longitud
+            empleado_id: 67, // Francisco Mancilla
+            tipo_permiso_id: 1, // Permiso Jornada Completa
+            fecha_desde: '2025-01-13',
+            fecha_hasta: '2025-01-13',
+            motivo: 'Trámites médicos familiares urgentes',
             estado: 'PENDIENTE'
         };
 
-        console.log('📝 Insertando:', solicitudData);
+        console.log('📝 Insertando solicitud de prueba:', solicitudData);
 
-        // Inserción simple sin complicaciones
+        // Intentar inserción directa
         const { data, error } = await supabase
             .from('solicitudes_permisos')
             .insert([solicitudData])
-            .select(`
-                *,
-                tipos_permisos(id, codigo, nombre, color_hex)
-            `)
+            .select()
             .single();
 
         if (error) {
-            console.error('❌ Error de Supabase:', error);
-            
-            // Si falla, intentar inserción básica sin relaciones
-            try {
-                const { data: basicData, error: basicError } = await supabase
-                    .from('solicitudes_permisos')
-                    .insert([solicitudData]);
-
-                if (!basicError) {
-                    console.log('✅ Inserción básica exitosa');
-                    return res.status(201).json({
-                        success: true,
-                        message: 'Solicitud creada exitosamente',
-                        data: {
-                            ...solicitudData,
-                            id: Date.now(), // ID temporal
-                            estado: 'PENDIENTE'
-                        }
-                    });
-                }
-            } catch (retryError) {
-                console.error('❌ Error en retry:', retryError);
-            }
-
+            console.error('❌ Error insertando:', error);
             return res.status(500).json({ 
                 error: 'Error insertando solicitud', 
-                details: error.message 
+                details: error.message,
+                hint: 'Verifica estructura de tabla solicitudes_permisos' 
             });
         }
 
-        console.log('✅ Solicitud creada exitosamente:', data);
+        console.log('✅ Solicitud de prueba creada:', data);
 
-        res.status(201).json({
+        res.json({
             success: true,
-            message: 'Solicitud creada exitosamente',
-            data: {
-                id: data.id,
-                tipo_permiso_id: data.tipo_permiso_id,
-                tipo_permiso_nombre: data.tipos_permisos?.nombre || 'Permiso',
-                fecha_inicio: data.fecha_desde,
-                motivo: data.motivo,
-                estado: data.estado
-            }
+            message: 'Solicitud de prueba creada exitosamente',
+            data: data
         });
 
     } catch (error) {
         console.error('💥 Error general:', error);
-        res.status(500).json({ error: 'Error interno del servidor' });
+        res.status(500).json({ error: 'Error interno: ' + error.message });
     }
 });
 
