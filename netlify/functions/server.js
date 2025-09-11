@@ -294,6 +294,79 @@ app.get('/api/andrea-ver-francisco', async (req, res) => {
     }
 });
 
+// SIMPLE: Endpoint para aprobar solicitud (sin joins complejos)
+app.post('/api/aprobar-simple/:id', async (req, res) => {
+    try {
+        console.log('✅ === APROBACION SIMPLIFICADA ===');
+        console.log('ID solicitud:', req.params.id);
+        console.log('Body:', req.body);
+        
+        if (!supabase) {
+            return res.json({ error: 'Supabase no configurado' });
+        }
+
+        const solicitudId = parseInt(req.params.id);
+        const { observaciones } = req.body;
+
+        // 1. Obtener solicitud actual (sin joins)
+        const { data: solicitud, error: consultaError } = await supabase
+            .from('solicitudes_permisos')
+            .select('*')
+            .eq('id', solicitudId)
+            .eq('estado', 'PENDIENTE')
+            .single();
+
+        if (consultaError || !solicitud) {
+            console.error('❌ Error consultando solicitud:', consultaError);
+            return res.json({
+                success: false,
+                error: 'Solicitud no encontrada o ya procesada'
+            });
+        }
+
+        console.log('📄 Solicitud encontrada:', solicitud.motivo);
+
+        // 2. Actualizar solicitud a APROBADO
+        const { data: solicitudAprobada, error: updateError } = await supabase
+            .from('solicitudes_permisos')
+            .update({
+                estado: 'APROBADO',
+                fecha_aprobacion: new Date().toISOString(),
+                aprobado_por: 46, // Andrea ID
+                visto_por_supervisor: true,
+                fecha_visto_supervisor: new Date().toISOString(),
+                supervisor_comentario: observaciones || 'Aprobado por supervisor',
+                updated_at: new Date().toISOString()
+            })
+            .eq('id', solicitudId)
+            .select()
+            .single();
+
+        if (updateError) {
+            console.error('❌ Error actualizando:', updateError);
+            return res.json({
+                success: false,
+                error: 'Error aprobando solicitud: ' + updateError.message
+            });
+        }
+
+        console.log('✅ Solicitud aprobada exitosamente');
+
+        res.json({
+            success: true,
+            message: 'Solicitud aprobada exitosamente',
+            data: solicitudAprobada
+        });
+
+    } catch (error) {
+        console.error('💥 Error general:', error);
+        res.json({
+            success: false,
+            error: 'Error interno: ' + error.message
+        });
+    }
+});
+
 // TEMPORAL: Endpoint para verificar estructura de tabla solicitudes_permisos
 app.get('/api/debug/tabla-solicitudes', async (req, res) => {
     try {
