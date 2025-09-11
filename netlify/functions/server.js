@@ -167,6 +167,46 @@ app.post('/api/crear-permiso', async (req, res) => {
     }
 });
 
+// TEMPORAL: Endpoint para verificar estructura de tabla solicitudes_permisos
+app.get('/api/debug/tabla-solicitudes', async (req, res) => {
+    try {
+        if (!supabase) {
+            return res.status(500).json({ error: 'Base de datos no configurada' });
+        }
+
+        console.log('🔍 Consultando estructura de tabla solicitudes_permisos...');
+
+        // Intentar consultar las primeras 5 solicitudes para ver la estructura
+        const { data, error } = await supabase
+            .from('solicitudes_permisos')
+            .select('*')
+            .limit(5);
+
+        if (error) {
+            console.error('❌ Error consultando tabla:', error);
+            return res.json({
+                success: false,
+                error: error.message,
+                hint: 'La tabla solicitudes_permisos puede no existir o tener problemas de permisos'
+            });
+        }
+
+        console.log('✅ Estructura de tabla encontrada:', data);
+
+        res.json({
+            success: true,
+            message: 'Consulta exitosa',
+            solicitudes: data,
+            total: data.length,
+            estructura: data.length > 0 ? Object.keys(data[0]) : 'Sin registros para mostrar estructura'
+        });
+
+    } catch (error) {
+        console.error('💥 Error consultando tabla:', error);
+        res.status(500).json({ error: 'Error interno: ' + error.message });
+    }
+});
+
 // TEMPORAL: Endpoint para listar empleados
 app.get('/api/debug/empleados', async (req, res) => {
     try {
