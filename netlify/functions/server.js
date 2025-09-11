@@ -25,10 +25,10 @@ app.use((req, res, next) => {
     next();
 });
 
-// Variables de entorno
+// Variables de entorno - NUEVA BASE DE DATOS
 const JWT_SECRET = process.env.JWT_SECRET || 'clave_super_secreta_permisos_admin_chile_2025';
-const SUPABASE_URL = process.env.SUPABASE_URL || 'https://kxdrtufgjrfnksylvtnh.supabase.co';
-const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imt4ZHJ0dWZnanJmbmtzeWx2dG5oIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzY4ODA5NDMsImV4cCI6MjA1MjQ1Njk0M30.5FNaYqHUjrU9TYOzRy4FrDbm6JOFmYoxNV7xRLa4ysI';
+const SUPABASE_URL = process.env.SUPABASE_URL || 'https://nbxsjrzsanlcflqpkghv.supabase.co';
+const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5ieHNqcnpzYW5sY2ZscXBrZ2h2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTc2MDgzOTgsImV4cCI6MjA3MzE4NDM5OH0.flkkZrFGHashSxZPcY2cRYXmRmcftB72bXo4_Q7-lgA';
 
 // Configurar Supabase
 let supabase = null;
@@ -1721,18 +1721,26 @@ app.post('/api/solicitudes-empleado/aprobar-supervisor/:id', verifyToken, async 
         
         console.log(`🔄 Actualizando estado a: ${nuevoEstado}`);
         
-        // Actualizar solicitud
+        // Actualizar solicitud con columnas básicas
+        const updateData = {
+            estado: nuevoEstado
+        };
+        
+        // Solo agregar campos que existen
+        if (esAutoridad) {
+            updateData.fecha_aprobacion = new Date().toISOString();
+            updateData.aprobado_por = req.user.id;
+        }
+        
+        if (req.body.observaciones) {
+            updateData.observaciones = req.body.observaciones;
+        }
+        
+        console.log('🔄 Datos a actualizar:', updateData);
+        
         const { error: updateError } = await supabase
             .from('solicitudes_permisos')
-            .update({
-                estado: nuevoEstado,
-                aprobado_supervisor_por: req.user.id,
-                aprobado_supervisor_fecha: new Date().toISOString(),
-                fecha_aprobacion: esAutoridad ? new Date().toISOString() : null,
-                aprobado_por: esAutoridad ? req.user.id : null,
-                observaciones_supervisor: req.body.observaciones || null,
-                updated_at: new Date().toISOString()
-            })
+            .update(updateData)
             .eq('id', id);
 
         if (updateError) {
@@ -1778,13 +1786,10 @@ app.post('/api/solicitudes-empleado/autorizar-final/:id', verifyToken, async (re
         const autorizadorId = req.user.id;
         const autorizadorNombre = req.user.nombre;
 
-        // Obtener la solicitud
+        // Obtener la solicitud (SIN JOINS COMPLEJOS)
         const { data: solicitud, error: solicitudError } = await supabase
             .from('solicitudes_permisos')
-            .select(`
-                *,
-                empleados!inner(nombre, rut, visualizacion, autorizacion)
-            `)
+            .select('*')
             .eq('id', id)
             .eq('estado', 'APROBADO_SUPERVISOR')
             .single();
@@ -1795,11 +1800,30 @@ app.post('/api/solicitudes-empleado/autorizar-final/:id', verifyToken, async (re
             });
         }
 
-        // Verificar que el usuario sea el autorizador
-        const empleado = solicitud.empleados;
-        if (empleado.autorizacion !== autorizadorNombre) {
+        // Obtener datos del empleado de la solicitud
+        const { data: empleado, error: empleadoError } = await supabase
+            .from('empleados')
+            .select('nombre, rut, visualizacion, autorizacion')
+            .eq('id', solicitud.empleado_id)
+            .single();
+
+        if (empleadoError || !empleado) {
+            return res.status(404).json({ 
+                error: 'Empleado no encontrado' 
+            });
+        }
+
+        // Verificar que el usuario sea el autorizador (solo autoridades máximas pueden autorizar)
+        const autorizadorNombreLower = autorizadorNombre.toLowerCase();
+        const autorizadoresPermitidos = ['ronny', 'cisterna', 'patricio', 'bravo'];
+        
+        const esAutorizadorValido = autorizadoresPermitidos.some(auth => 
+            autorizadorNombreLower.includes(auth)
+        );
+        
+        if (!esAutorizadorValido) {
             return res.status(403).json({ 
-                error: 'No tienes permisos para autorizar esta solicitud' 
+                error: 'No tienes permisos para autorizar solicitudes' 
             });
         }
 
