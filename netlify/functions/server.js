@@ -360,9 +360,50 @@ app.post('/api/aprobar-simple/:id', async (req, res) => {
 
     } catch (error) {
         console.error('💥 Error general:', error);
+        console.error('💥 Stack:', error.stack);
         res.json({
             success: false,
-            error: 'Error interno: ' + error.message
+            error: 'Error interno: ' + error.message,
+            stack: error.stack
+        });
+    }
+});
+
+// TEST: Endpoint ultra-simple para aprobar
+app.post('/api/test-aprobar/:id', async (req, res) => {
+    try {
+        console.log('🧪 TEST APROBACION - ID:', req.params.id);
+        
+        if (!supabase) {
+            return res.json({ error: 'Supabase no configurado' });
+        }
+
+        const solicitudId = parseInt(req.params.id);
+        
+        // Solo cambiar el estado a APROBADO
+        const { data, error } = await supabase
+            .from('solicitudes_permisos')
+            .update({ estado: 'APROBADO' })
+            .eq('id', solicitudId);
+
+        if (error) {
+            return res.json({
+                success: false,
+                error: error.message,
+                details: error
+            });
+        }
+
+        return res.json({
+            success: true,
+            message: 'Solicitud aprobada (test)'
+        });
+
+    } catch (error) {
+        console.error('Error:', error);
+        return res.json({
+            success: false,
+            error: error.message
         });
     }
 });
