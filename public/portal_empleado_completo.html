@@ -1004,6 +1004,11 @@
                     tiposPermisosData.forEach(tipo => {
                         select.innerHTML += `<option value="${tipo.id}">${tipo.nombre} (${tipo.codigo})</option>`;
                     });
+                    
+                    // Inicializar la lógica de fecha fin después de cargar tipos
+                    setTimeout(() => {
+                        manejarFechaFinSegunTipo();
+                    }, 100);
                 }
                 
             } catch (error) {
@@ -1469,8 +1474,15 @@
         // Función para mostrar/ocultar fecha fin según tipo de permiso
         function manejarFechaFinSegunTipo() {
             const tipoPermisoSelect = document.getElementById('tipoPermiso');
-            const fechaFinGroup = document.getElementById('fechaFin').closest('.mb-3');
             const fechaFinInput = document.getElementById('fechaFin');
+            
+            // Buscar el contenedor con la clase correcta
+            const fechaFinGroup = fechaFinInput ? fechaFinInput.closest('.edit-field') : null;
+            
+            if (!tipoPermisoSelect || !fechaFinInput || !fechaFinGroup) {
+                console.log('⚠️ No se encontraron elementos del formulario');
+                return;
+            }
             
             if (!tipoPermisoSelect.value) {
                 fechaFinGroup.style.display = 'block';
@@ -1484,17 +1496,23 @@
             
             if (tipoSeleccionado) {
                 const codigo = tipoSeleccionado.codigo;
+                console.log('📅 Tipo de permiso seleccionado:', codigo);
                 
                 if (codigo === 'S') {
                     // Permisos sin goce: mostrar fecha fin (obligatoria)
                     fechaFinGroup.style.display = 'block';
                     fechaFinInput.required = true;
-                    fechaFinGroup.querySelector('label').innerHTML = 'Fecha hasta <span class="text-danger">*</span>';
+                    const label = fechaFinGroup.querySelector('label');
+                    if (label) {
+                        label.innerHTML = 'Fecha hasta <span class="text-danger">*</span>';
+                    }
+                    console.log('✅ Mostrando fecha fin para permiso sin goce');
                 } else {
                     // T, AM, PM: ocultar fecha fin
                     fechaFinGroup.style.display = 'none';
                     fechaFinInput.required = false;
                     fechaFinInput.value = ''; // Limpiar valor
+                    console.log('✅ Ocultando fecha fin para permiso:', codigo);
                 }
             }
         }
