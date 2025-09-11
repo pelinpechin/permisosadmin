@@ -1986,12 +1986,22 @@
         
         // Verificar si el usuario es supervisor y mostrar sección
         function verificarSiEsSupervisor(empleadoInfo) {
+            console.log('🔍 Verificando si es supervisor:', empleadoInfo);
+            console.log('- Visualización:', empleadoInfo?.visualizacion);
+            console.log('- Autorización:', empleadoInfo?.autorizacion);
+            
             // Si el empleado tiene permisos de visualización o autorización, mostrar la sección de supervisión
             const esSupervisor = empleadoInfo && (empleadoInfo.visualizacion === true || empleadoInfo.autorizacion === true);
             
+            console.log('- Es supervisor:', esSupervisor);
+            
             if (esSupervisor) {
+                console.log('✅ Mostrando sección de supervisión');
                 document.getElementById('seccionSupervision').style.display = 'block';
                 cargarSolicitudesSubordinados();
+            } else {
+                console.log('❌ No es supervisor - ocultando sección');
+                document.getElementById('seccionSupervision').style.display = 'none';
             }
         }
         
