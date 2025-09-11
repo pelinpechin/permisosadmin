@@ -169,8 +169,72 @@ app.post('/api/crear-permiso', async (req, res) => {
         });
 
     } catch (error) {
-        console.error('💥 Error:', error);
-        res.status(500).json({ error: 'Error interno' });
+        console.error('💥 Error general:', error);
+        console.error('💥 Stack trace:', error.stack);
+        res.status(500).json({ 
+            error: 'Error interno',
+            message: error.message,
+            stack: error.stack
+        });
+    }
+});
+
+// TEST EXTREMO: Insertar datos completamente duros sin variables
+app.post('/api/test-insert-hard', async (req, res) => {
+    try {
+        console.log('🔬 === TEST INSERCIÓN DATOS DUROS ===');
+        
+        if (!supabase) {
+            return res.json({ error: 'Supabase no configurado' });
+        }
+
+        // Datos completamente duros, copiando estructura de registros existentes
+        const datosTest = {
+            empleado_id: 67,
+            tipo_permiso_id: 1,
+            fecha_solicitud: '2025-01-15',
+            fecha_desde: '2025-01-15',
+            fecha_hasta: '2025-01-15',
+            motivo: 'TEST - Cita medica familiar',
+            observaciones: 'TEST - Solicitud de prueba desde API',
+            estado: 'PENDIENTE',
+            visto_por_supervisor: false
+        };
+
+        console.log('📝 Insertando datos test:', datosTest);
+
+        const resultado = await supabase
+            .from('solicitudes_permisos')
+            .insert([datosTest])
+            .select()
+            .single();
+
+        console.log('📊 Resultado completo:', resultado);
+
+        if (resultado.error) {
+            console.error('❌ Error detallado:', resultado.error);
+            return res.json({
+                success: false,
+                error: resultado.error.message,
+                details: resultado.error,
+                hint: resultado.error.hint || 'Sin pistas adicionales'
+            });
+        }
+
+        console.log('✅ Inserción exitosa!');
+        return res.json({
+            success: true,
+            message: 'Datos insertados exitosamente',
+            data: resultado.data
+        });
+
+    } catch (error) {
+        console.error('💥 Error catch:', error);
+        return res.json({
+            success: false,
+            error: error.message,
+            stack: error.stack
+        });
     }
 });
 
