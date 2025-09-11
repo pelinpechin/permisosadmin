@@ -1053,9 +1053,9 @@
                     'RECHAZADO': 'times-circle text-danger'
                 };
                 
-                // Extraer información de fechas de las observaciones para permisos históricos
-                let fechaInicio = solicitud.fecha_inicio;
-                let fechaFin = solicitud.fecha_fin;
+                // Extraer información de fechas (compatibilidad con ambos formatos)
+                let fechaInicio = solicitud.fecha_desde || solicitud.fecha_inicio;
+                let fechaFin = solicitud.fecha_hasta || solicitud.fecha_fin;
                 let periodoTexto = '';
                 
                 if (solicitud.observaciones && solicitud.observaciones.includes('Permiso histórico importado desde CSV')) {
