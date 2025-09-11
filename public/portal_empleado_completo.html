@@ -967,8 +967,10 @@
                 });
                 
                 const data = await response.json();
+                console.log('📋 Datos de historial recibidos:', data);
                 
                 if (response.ok) {
+                    console.log('📊 Solicitudes encontradas:', data.data ? data.data.length : 0);
                     mostrarSolicitudes(data.data || []);
                     actualizarResumen(data.data || []);
                 } else {
@@ -1304,17 +1306,21 @@
                 });
                 
                 const data = await response.json();
+                console.log('📝 Respuesta del servidor:', data);
                 
                 if (response.ok) {
                     bootstrap.Modal.getInstance(document.getElementById('modalNuevoPermiso')).hide();
                     document.getElementById('formNuevoPermiso').reset();
                     
                     mostrarToast('success', 'Solicitud de permiso creada exitosamente');
+                    console.log('✅ Recargando datos después de crear solicitud...');
                     
                     // Esperar un momento para que la DB se actualice
                     setTimeout(async () => {
+                        console.log('🔄 Iniciando recarga de solicitudes...');
                         await cargarSolicitudes();
                         await cargarDashboard();
+                        console.log('✅ Recarga completada');
                     }, 1000);
                     
                 } else {
