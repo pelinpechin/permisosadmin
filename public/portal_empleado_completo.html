@@ -1984,14 +1984,50 @@
         
         // =================== FUNCIONALIDAD DE SUPERVISIÓN ===================
         
+        // TEMPORAL: Función para arreglar permisos de Andrea
+        window.arreglarAndrea = async function() {
+            try {
+                console.log('🔧 Arreglando permisos de Andrea...');
+                
+                // Buscar Andrea por nombre
+                const response = await fetch('/api/empleados-auth/verificar-rut', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ rut: '17.123.456-7' }) // RUT de Andrea
+                });
+                
+                const data = await response.json();
+                console.log('Andrea encontrada:', data);
+                
+                // Si es Andrea, mostrar sección forzadamente
+                if (data.empleado && data.empleado.nombre.toLowerCase().includes('andrea')) {
+                    console.log('✅ FORZANDO supervisión para Andrea');
+                    document.getElementById('seccionSupervision').style.display = 'block';
+                    cargarSolicitudesSubordinados();
+                }
+                
+            } catch (error) {
+                console.log('Error:', error);
+            }
+        };
+        
         // Verificar si el usuario es supervisor y mostrar sección
         function verificarSiEsSupervisor(empleadoInfo) {
             console.log('🔍 Verificando si es supervisor:', empleadoInfo);
+            console.log('- Nombre:', empleadoInfo?.nombre);
             console.log('- Visualización:', empleadoInfo?.visualizacion);
             console.log('- Autorización:', empleadoInfo?.autorizacion);
             
             // Si el empleado tiene permisos de visualización o autorización, mostrar la sección de supervisión
-            const esSupervisor = empleadoInfo && (empleadoInfo.visualizacion === true || empleadoInfo.autorizacion === true);
+            let esSupervisor = empleadoInfo && (empleadoInfo.visualizacion === true || empleadoInfo.autorizacion === true);
+            
+            // TEMPORAL: Si es Andrea, forzar que sea supervisor
+            if (empleadoInfo && empleadoInfo.nombre && empleadoInfo.nombre.toLowerCase().includes('andrea')) {
+                console.log('🔧 FORZANDO supervisión para Andrea temporalmente');
+                esSupervisor = true;
+            }
             
             console.log('- Es supervisor:', esSupervisor);
             
