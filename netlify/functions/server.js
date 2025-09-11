@@ -264,46 +264,99 @@ app.post('/api/empleados-auth/login', async (req, res) => {
 app.post('/api/empleados-auth/crear-password', async (req, res) => {
     try {
         console.log('🔐 === CREAR PASSWORD ===');
-        console.log('🔐 Body:', req.body);
+        console.log('🔐 Headers:', req.headers);
+        console.log('🔐 Body completo:', req.body);
+        console.log('🔐 Content-Type:', req.headers['content-type']);
         
         const { rut, password } = req.body;
         
-        if (!rut || !password) {
-            return res.status(400).json({ error: 'RUT y contraseña son requeridos' });
+        console.log('🔐 Datos extraídos - RUT:', rut, 'Password length:', password ? password.length : 'undefined');
+        
+        if (!rut) {
+            console.log('❌ RUT faltante');
+            return res.status(400).json({ 
+                error: 'RUT es requerido',
+                received: { rut: rut, hasPassword: !!password }
+            });
+        }
+        
+        if (!password) {
+            console.log('❌ Password faltante');
+            return res.status(400).json({ 
+                error: 'Contraseña es requerida',
+                received: { rut: rut, hasPassword: !!password }
+            });
+        }
+
+        if (password.length < 4) {
+            console.log('❌ Password muy corta');
+            return res.status(400).json({ 
+                error: 'La contraseña debe tener al menos 4 caracteres'
+            });
         }
 
         if (!supabase) {
+            console.log('❌ Supabase no configurado');
             return res.status(500).json({ error: 'Base de datos no configurada' });
         }
 
         const rutNormalizado = normalizarRUT(rut);
+        console.log('🔐 RUT normalizado:', rutNormalizado);
         
-        // Consultar empleados activos
-        const { data: empleados, error } = await supabase
-            .from('empleados')
-            .select('*')
-            .eq('activo', true);
-        
-        if (error) {
-            console.error('Error consultando empleados:', error);
-            return res.status(500).json({ error: 'Error consultando base de datos' });
+        // Consultar empleados activos con manejo de errores mejorado
+        let empleados;
+        try {
+            const { data, error } = await supabase
+                .from('empleados')
+                .select('*')
+                .eq('activo', true);
+            
+            if (error) {
+                console.error('❌ Error Supabase consultando empleados:', error);
+                return res.status(500).json({ 
+                    error: 'Error consultando base de datos: ' + error.message,
+                    details: error
+                });
+            }
+            
+            empleados = data;
+            console.log('🔐 Empleados encontrados:', empleados ? empleados.length : 0);
+            
+        } catch (supabaseError) {
+            console.error('❌ Error de conexión Supabase:', supabaseError);
+            return res.status(500).json({ 
+                error: 'Error de conexión a la base de datos: ' + supabaseError.message 
+            });
         }
         
         const empleado = empleados.find(emp => 
             normalizarRUT(emp.rut) === rutNormalizado
         );
 
+        console.log('🔐 Empleado encontrado:', empleado ? empleado.nombre : 'No encontrado');
+
         if (!empleado) {
-            return res.status(404).json({ error: 'Empleado no encontrado o inactivo' });
+            console.log('❌ Empleado no encontrado con RUT:', rutNormalizado);
+            return res.status(404).json({ 
+                error: 'Empleado no encontrado o inactivo',
+                rut_buscado: rutNormalizado
+            });
         }
 
         if (empleado.password_hash) {
-            return res.status(400).json({ error: 'El empleado ya tiene contraseña configurada' });
+            console.log('❌ Empleado ya tiene contraseña');
+            return res.status(400).json({ 
+                error: 'El empleado ya tiene contraseña configurada. Use la opción de recuperar contraseña.'
+            });
         }
 
+        console.log('🔐 Hasheando contraseña...');
+        
         // Hash de la contraseña
         const saltRounds = 10;
         const passwordHash = await bcrypt.hash(password, saltRounds);
+
+        console.log('🔐 Actualizando empleado en DB...');
 
         // Actualizar empleado con password hash
         const { error: updateError } = await supabase
@@ -316,8 +369,11 @@ app.post('/api/empleados-auth/crear-password', async (req, res) => {
             .eq('id', empleado.id);
 
         if (updateError) {
-            console.error('Error actualizando contraseña:', updateError);
-            return res.status(500).json({ error: 'Error actualizando contraseña' });
+            console.error('❌ Error actualizando contraseña:', updateError);
+            return res.status(500).json({ 
+                error: 'Error actualizando contraseña: ' + updateError.message,
+                details: updateError
+            });
         }
 
         console.log('✅ Contraseña creada exitosamente para:', empleado.nombre);
@@ -333,8 +389,11 @@ app.post('/api/empleados-auth/crear-password', async (req, res) => {
         });
         
     } catch (error) {
-        console.error('Error creando contraseña:', error);
-        res.status(500).json({ error: 'Error interno del servidor' });
+        console.error('💥 Error general creando contraseña:', error);
+        res.status(500).json({ 
+            error: 'Error interno del servidor: ' + error.message,
+            stack: error.stack
+        });
     }
 });
 
