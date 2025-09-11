@@ -2142,38 +2142,57 @@
                 return;
             }
             
-            const html = solicitudes.map(solicitud => `
-                <div class="permiso-card card status-${solicitud.estado.toLowerCase()}">
-                    <div class="card-body">
-                        <div class="row">
-                            <div class="col-md-8">
-                                <h6 class="card-title">
-                                    <span class="badge" style="background-color: ${solicitud.tipo_permiso.color}">
-                                        ${solicitud.tipo_permiso.codigo}
-                                    </span>
-                                    ${solicitud.tipo_permiso.nombre}
-                                </h6>
-                                <p class="mb-1"><strong>Empleado:</strong> ${solicitud.empleado.nombre}</p>
-                                <p class="mb-1"><strong>RUT:</strong> ${solicitud.empleado.rut}</p>
-                                <p class="mb-1"><strong>Cargo:</strong> ${solicitud.empleado.cargo}</p>
-                                <p class="mb-1"><strong>Fecha:</strong> ${solicitud.fecha_desde}${solicitud.fecha_hasta !== solicitud.fecha_desde ? ' al ' + solicitud.fecha_hasta : ''}</p>
-                                <p class="mb-1"><strong>Motivo:</strong> ${solicitud.motivo}</p>
-                                <p class="text-muted small">Solicitado: ${new Date(solicitud.fecha_solicitud).toLocaleDateString()}</p>
-                            </div>
-                            <div class="col-md-4 text-end">
-                                <div class="btn-group-vertical gap-2">
-                                    <button class="btn btn-success btn-sm" onclick="aprobarSolicitud(${solicitud.id})">
-                                        <i class="fas fa-check me-1"></i> Aprobar
-                                    </button>
-                                    <button class="btn btn-danger btn-sm" onclick="rechazarSolicitud(${solicitud.id})">
-                                        <i class="fas fa-times me-1"></i> Rechazar
-                                    </button>
+            const html = solicitudes.map(solicitud => {
+                const estadoBadge = {
+                    'PENDIENTE': '<span class="badge bg-warning text-dark">PENDIENTE</span>',
+                    'APROBADO': '<span class="badge bg-success">APROBADO</span>',
+                    'RECHAZADO': '<span class="badge bg-danger">RECHAZADO</span>',
+                    'APROBADO_SUPERVISOR': '<span class="badge bg-info">APROBADO POR SUPERVISOR</span>'
+                };
+                
+                return `
+                    <div class="permiso-card card status-${solicitud.estado.toLowerCase()}">
+                        <div class="card-body">
+                            <div class="row">
+                                <div class="col-md-8">
+                                    <div class="d-flex justify-content-between align-items-center mb-2">
+                                        <h6 class="card-title mb-0">
+                                            <span class="badge" style="background-color: ${solicitud.tipo_permiso.color}">
+                                                ${solicitud.tipo_permiso.codigo}
+                                            </span>
+                                            ${solicitud.tipo_permiso.nombre}
+                                        </h6>
+                                        ${estadoBadge[solicitud.estado] || estadoBadge['PENDIENTE']}
+                                    </div>
+                                    <p class="mb-1"><strong>Empleado:</strong> ${solicitud.empleado.nombre}</p>
+                                    <p class="mb-1"><strong>RUT:</strong> ${solicitud.empleado.rut}</p>
+                                    <p class="mb-1"><strong>Cargo:</strong> ${solicitud.empleado.cargo}</p>
+                                    <p class="mb-1"><strong>Fecha:</strong> ${solicitud.fecha_desde}${solicitud.fecha_hasta !== solicitud.fecha_desde ? ' al ' + solicitud.fecha_hasta : ''}</p>
+                                    <p class="mb-1"><strong>Motivo:</strong> ${solicitud.motivo}</p>
+                                    <p class="text-muted small">Solicitado: ${new Date(solicitud.fecha_solicitud).toLocaleDateString()}</p>
+                                </div>
+                                <div class="col-md-4 text-end">
+                                    ${solicitud.estado === 'PENDIENTE' ? `
+                                        <div class="btn-group-vertical gap-2">
+                                            <button class="btn btn-success btn-sm" onclick="aprobarSolicitud(${solicitud.id})">
+                                                <i class="fas fa-check me-1"></i> Aprobar
+                                            </button>
+                                            <button class="btn btn-danger btn-sm" onclick="rechazarSolicitud(${solicitud.id})">
+                                                <i class="fas fa-times me-1"></i> Rechazar
+                                            </button>
+                                        </div>
+                                    ` : `
+                                        <div class="text-muted">
+                                            <i class="fas fa-info-circle"></i>
+                                            <small>Ya procesado</small>
+                                        </div>
+                                    `}
                                 </div>
                             </div>
                         </div>
                     </div>
-                </div>
-            `).join('');
+                `;
+            }).join('');
             
             container.innerHTML = html;
         }

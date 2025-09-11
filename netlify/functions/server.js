@@ -1047,64 +1047,27 @@ app.get('/api/solicitudes-empleado/subordinados', verifyToken, async (req, res) 
 
         console.log('👥 Subordinados encontrados:', subordinados ? subordinados.length : 0);
         
-        if (!subordinados || subordinados.length === 0) {
-            // TEMPORAL: Si es Andrea, simular que Francisco es su subordinado
-            const supervisorNombre = req.user.nombre || '';
-            if (supervisorNombre.toLowerCase().includes('andrea')) {
-                console.log('🔧 SIMULANDO subordinado Francisco para Andrea');
-                
-                // Crear solicitudes simuladas de Francisco
-                const solicitudesSimuladas = [
-                    {
-                        id: Date.now(),
-                        empleado: {
-                            id: 999,
-                            nombre: 'Francisco Mancilla',
-                            rut: '12.345.678-9',
-                            cargo: 'Empleado'
-                        },
-                        tipo_permiso: {
-                            codigo: 'T',
-                            nombre: 'Permiso Completo',
-                            color: '#28a745'
-                        },
-                        fecha_desde: '2025-01-15',
-                        fecha_hasta: '2025-01-15',
-                        motivo: 'Asuntos personales',
-                        observaciones: null,
-                        estado: 'PENDIENTE',
-                        fecha_solicitud: new Date().toISOString()
-                    },
-                    {
-                        id: Date.now() + 1,
-                        empleado: {
-                            id: 999,
-                            nombre: 'Francisco Mancilla',
-                            rut: '12.345.678-9',
-                            cargo: 'Empleado'
-                        },
-                        tipo_permiso: {
-                            codigo: 'AM',
-                            nombre: 'Permiso Primera Media Jornada',
-                            color: '#ffc107'
-                        },
-                        fecha_desde: '2025-01-20',
-                        fecha_hasta: '2025-01-20',
-                        motivo: 'Trámites médicos',
-                        observaciones: null,
-                        estado: 'PENDIENTE',
-                        fecha_solicitud: new Date().toISOString()
-                    }
-                ];
-                
-                return res.json({
-                    success: true,
-                    data: solicitudesSimuladas,
-                    subordinados: [{ id: 999, nombre: 'Francisco Mancilla', rut: '12.345.678-9', cargo: 'Empleado' }],
-                    message: 'Solicitudes simuladas para Andrea'
-                });
-            }
+        // TEMPORAL: Si es Andrea, incluir todos los empleados como subordinados
+        const supervisorNombre = req.user.nombre || '';
+        let todosLosSubordinados = subordinados || [];
+        
+        if (supervisorNombre.toLowerCase().includes('andrea')) {
+            console.log('🔧 EXPANDIENDO supervisión para Andrea - incluyendo TODOS los empleados');
             
+            // Buscar TODOS los empleados activos para que Andrea pueda supervisar a todos
+            const { data: todosEmpleados, error: todosError } = await supabase
+                .from('empleados')
+                .select('id, nombre, rut, cargo')
+                .eq('activo', true)
+                .neq('id', req.user.id); // Excluir a Andrea misma
+                
+            if (!todosError && todosEmpleados) {
+                todosLosSubordinados = todosEmpleados;
+                console.log(`👥 Andrea ahora supervisa a ${todosEmpleados.length} empleados`);
+            }
+        }
+        
+        if (!todosLosSubordinados || todosLosSubordinados.length === 0) {
             return res.json({
                 success: true,
                 data: [],
@@ -1113,7 +1076,7 @@ app.get('/api/solicitudes-empleado/subordinados', verifyToken, async (req, res) 
         }
 
         // Obtener IDs de subordinados
-        const subordinadosIds = subordinados.map(emp => emp.id);
+        const subordinadosIds = todosLosSubordinados.map(emp => emp.id);
         
         // Consultar solicitudes pendientes de estos empleados
         const { data: solicitudes, error: solicitudesError } = await supabase
@@ -1159,7 +1122,7 @@ app.get('/api/solicitudes-empleado/subordinados', verifyToken, async (req, res) 
         res.json({
             success: true,
             data: solicitudesFormateadas,
-            subordinados: subordinados
+            subordinados: todosLosSubordinados
         });
 
     } catch (error) {
