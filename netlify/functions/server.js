@@ -784,6 +784,12 @@ app.post('/api/solicitudes-empleado/crear', verifyToken, async (req, res) => {
         
         console.log('🎯 INTENTANDO INSERCIÓN EN SUPABASE...');
         
+        // DIAGNÓSTICO SUPABASE
+        console.log('🔍 DIAGNÓSTICO:');
+        console.log('- SUPABASE_URL:', SUPABASE_URL ? 'Configurado' : 'NO CONFIGURADO');
+        console.log('- SUPABASE_ANON_KEY:', SUPABASE_ANON_KEY ? 'Configurado' : 'NO CONFIGURADO');
+        console.log('- Cliente Supabase:', supabase ? 'Inicializado' : 'NO INICIALIZADO');
+        
         // INTENTO 1: Inserción normal
         try {
             const result = await supabase
@@ -851,6 +857,38 @@ app.post('/api/solicitudes-empleado/crear', verifyToken, async (req, res) => {
                 }
             } catch (error) {
                 console.log('⚠️ Error en inserción mínima:', error);
+            }
+        }
+        
+        // INTENTO FINAL: FETCH DIRECTO A SUPABASE API
+        if (!insertSuccess) {
+            console.log('🚀 INTENTO FINAL: Fetch directo a Supabase API...');
+            try {
+                const supabaseApiUrl = 'https://kxdrtufgjrfnksylvtnh.supabase.co';
+                const supabaseApiKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imt4ZHJ0dWZnanJmbmtzeWx2dG5oIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzY4ODA5NDMsImV4cCI6MjA1MjQ1Njk0M30.5FNaYqHUjrU9TYOzRy4FrDbm6JOFmYoxNV7xRLa4ysI';
+                
+                const response = await fetch(`${supabaseApiUrl}/rest/v1/solicitudes_permisos`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'apikey': supabaseApiKey,
+                        'Authorization': `Bearer ${supabaseApiKey}`,
+                        'Prefer': 'return=representation'
+                    },
+                    body: JSON.stringify(solicitudData)
+                });
+                
+                if (response.ok) {
+                    const insertedData = await response.json();
+                    console.log('✅ ÉXITO: Fetch directo funcionó:', insertedData);
+                    solicitud = insertedData[0] || insertedData;
+                    insertSuccess = true;
+                } else {
+                    const errorText = await response.text();
+                    console.log('❌ Error en fetch directo:', response.status, errorText);
+                }
+            } catch (error) {
+                console.log('❌ Excepción en fetch directo:', error);
             }
         }
         
