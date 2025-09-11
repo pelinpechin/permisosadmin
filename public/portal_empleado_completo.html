@@ -2008,14 +2008,23 @@
         // Cargar solicitudes de subordinados
         async function cargarSolicitudesSubordinados() {
             try {
+                console.log('🔍 === DEBUGGING SOLICITUDES SUBORDINADOS ===');
+                console.log('🔍 Token presente:', !!token);
+                console.log('🔍 Llamando a /api/solicitudes-empleado/subordinados');
+                
                 const response = await fetch('/api/solicitudes-empleado/subordinados', {
                     headers: {
                         'Authorization': `Bearer ${token}`
                     }
                 });
                 
+                console.log('🔍 Response status:', response.status);
+                console.log('🔍 Response ok:', response.ok);
+                
                 const data = await response.json();
-                console.log('👥 Solicitudes de subordinados:', data);
+                console.log('👥 RESPUESTA COMPLETA del servidor:', data);
+                console.log('👥 Subordinados encontrados:', data.subordinados);
+                console.log('👥 Solicitudes encontradas:', data.data);
                 
                 if (response.ok) {
                     mostrarSolicitudesSubordinados(data.data || []);
