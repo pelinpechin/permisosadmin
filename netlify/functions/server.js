@@ -238,6 +238,62 @@ app.post('/api/test-insert-hard', async (req, res) => {
     }
 });
 
+// SIMPLE: Endpoint para que Andrea vea solicitudes de Francisco
+app.get('/api/andrea-ver-francisco', async (req, res) => {
+    try {
+        console.log('👁️ === ANDREA VER SOLICITUDES DE FRANCISCO ===');
+        
+        if (!supabase) {
+            return res.json({ error: 'Supabase no configurado' });
+        }
+
+        // Buscar solicitudes de Francisco (ID: 67) que estén PENDIENTES
+        const { data: solicitudes, error } = await supabase
+            .from('solicitudes_permisos')
+            .select(`
+                *,
+                tipos_permisos(codigo, nombre, color_hex)
+            `)
+            .eq('empleado_id', 67) // Francisco
+            .eq('estado', 'PENDIENTE')
+            .order('created_at', { ascending: false });
+
+        if (error) {
+            console.error('❌ Error consultando:', error);
+            return res.json({
+                success: false,
+                error: error.message
+            });
+        }
+
+        console.log('✅ Solicitudes encontradas:', solicitudes.length);
+
+        // Agregar información del empleado manualmente
+        const solicitudesConEmpleado = solicitudes.map(sol => ({
+            ...sol,
+            empleado: {
+                id: 67,
+                nombre: 'Mancilla Vargas Francisco Gerardo',
+                rut: '17.238.098-0',
+                cargo: 'ADMINISTRATIVO DE RECAUDACION'
+            }
+        }));
+
+        res.json({
+            success: true,
+            message: `Andrea puede ver ${solicitudes.length} solicitudes de Francisco`,
+            solicitudes: solicitudesConEmpleado
+        });
+
+    } catch (error) {
+        console.error('💥 Error:', error);
+        res.json({
+            success: false,
+            error: error.message
+        });
+    }
+});
+
 // TEMPORAL: Endpoint para verificar estructura de tabla solicitudes_permisos
 app.get('/api/debug/tabla-solicitudes', async (req, res) => {
     try {
