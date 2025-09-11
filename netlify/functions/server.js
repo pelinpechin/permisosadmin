@@ -408,6 +408,41 @@ app.post('/api/test-aprobar/:id', async (req, res) => {
     }
 });
 
+// VERIFICAR: Endpoint para ver solicitud específica por ID
+app.get('/api/ver-solicitud/:id', async (req, res) => {
+    try {
+        if (!supabase) {
+            return res.json({ error: 'Supabase no configurado' });
+        }
+
+        const solicitudId = parseInt(req.params.id);
+        
+        const { data, error } = await supabase
+            .from('solicitudes_permisos')
+            .select('*')
+            .eq('id', solicitudId)
+            .single();
+
+        if (error) {
+            return res.json({
+                success: false,
+                error: error.message
+            });
+        }
+
+        return res.json({
+            success: true,
+            solicitud: data
+        });
+
+    } catch (error) {
+        return res.json({
+            success: false,
+            error: error.message
+        });
+    }
+});
+
 // TEMPORAL: Endpoint para verificar estructura de tabla solicitudes_permisos
 app.get('/api/debug/tabla-solicitudes', async (req, res) => {
     try {
