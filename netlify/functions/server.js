@@ -134,54 +134,98 @@ app.get('/api/debug/empleados', async (req, res) => {
     }
 });
 
-// TEMPORAL: Endpoint para crear solicitud directamente en la base de datos
-app.post('/api/debug/crear-solicitud-directa', async (req, res) => {
+// NUEVO: Endpoint simplificado para crear solicitudes (reemplazo funcional)
+app.post('/api/solicitudes-empleado/crear-simple', verifyToken, async (req, res) => {
     try {
+        console.log('🎯 === CREAR SOLICITUD SIMPLIFICADA ===');
+        console.log('Usuario:', req.user);
+        console.log('Body:', req.body);
+
+        if (req.user.type !== 'empleado') {
+            return res.status(403).json({ error: 'Acceso denegado' });
+        }
+
         if (!supabase) {
             return res.status(500).json({ error: 'Base de datos no configurada' });
         }
 
-        const { empleado_id, tipo_permiso_id, fecha_desde, motivo } = req.body;
+        const { tipo_permiso_id, fecha_inicio, motivo } = req.body;
         
-        if (!empleado_id || !tipo_permiso_id || !fecha_desde || !motivo) {
-            return res.status(400).json({ error: 'Faltan campos requeridos' });
+        if (!tipo_permiso_id || !fecha_inicio || !motivo) {
+            return res.status(400).json({ error: 'Tipo de permiso, fecha de inicio y motivo son requeridos' });
         }
 
-        console.log('🧪 Creando solicitud directamente en la base de datos...');
-        console.log('Datos:', { empleado_id, tipo_permiso_id, fecha_desde, motivo });
-
-        const solicitud = {
-            empleado_id,
-            tipo_permiso_id,
-            fecha_desde,
-            fecha_hasta: fecha_desde, // Mismo día por defecto
-            motivo,
-            estado: 'PENDIENTE',
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString()
+        // Crear solicitud con estructura simple
+        const solicitudData = {
+            empleado_id: req.user.id,
+            tipo_permiso_id: parseInt(tipo_permiso_id),
+            fecha_desde: fecha_inicio,
+            fecha_hasta: fecha_inicio, // Mismo día por defecto
+            motivo: motivo.substring(0, 500), // Limitar longitud
+            estado: 'PENDIENTE'
         };
 
+        console.log('📝 Insertando:', solicitudData);
+
+        // Inserción simple sin complicaciones
         const { data, error } = await supabase
             .from('solicitudes_permisos')
-            .insert([solicitud])
-            .select();
+            .insert([solicitudData])
+            .select(`
+                *,
+                tipos_permisos(id, codigo, nombre, color_hex)
+            `)
+            .single();
 
         if (error) {
-            console.error('Error insertando solicitud:', error);
-            return res.status(500).json({ error: 'Error insertando solicitud: ' + error.message });
+            console.error('❌ Error de Supabase:', error);
+            
+            // Si falla, intentar inserción básica sin relaciones
+            try {
+                const { data: basicData, error: basicError } = await supabase
+                    .from('solicitudes_permisos')
+                    .insert([solicitudData]);
+
+                if (!basicError) {
+                    console.log('✅ Inserción básica exitosa');
+                    return res.status(201).json({
+                        success: true,
+                        message: 'Solicitud creada exitosamente',
+                        data: {
+                            ...solicitudData,
+                            id: Date.now(), // ID temporal
+                            estado: 'PENDIENTE'
+                        }
+                    });
+                }
+            } catch (retryError) {
+                console.error('❌ Error en retry:', retryError);
+            }
+
+            return res.status(500).json({ 
+                error: 'Error insertando solicitud', 
+                details: error.message 
+            });
         }
 
-        console.log('✅ Solicitud creada directamente:', data[0]);
+        console.log('✅ Solicitud creada exitosamente:', data);
 
-        res.json({
+        res.status(201).json({
             success: true,
-            message: 'Solicitud creada directamente en la base de datos',
-            solicitud: data[0]
+            message: 'Solicitud creada exitosamente',
+            data: {
+                id: data.id,
+                tipo_permiso_id: data.tipo_permiso_id,
+                tipo_permiso_nombre: data.tipos_permisos?.nombre || 'Permiso',
+                fecha_inicio: data.fecha_desde,
+                motivo: data.motivo,
+                estado: data.estado
+            }
         });
 
     } catch (error) {
-        console.error('Error en crear solicitud directa:', error);
-        res.status(500).json({ error: 'Error interno: ' + error.message });
+        console.error('💥 Error general:', error);
+        res.status(500).json({ error: 'Error interno del servidor' });
     }
 });
 
@@ -883,19 +927,8 @@ app.post('/api/solicitudes-empleado/crear', verifyToken, async (req, res) => {
         }
 
         if (!supabase) {
-            console.log('❌ Supabase no configurado - devolviendo simulación');
-            return res.status(201).json({
-                success: true,
-                message: 'Solicitud creada exitosamente (modo simulado - Supabase no disponible)',
-                data: {
-                    id: Date.now(),
-                    tipo_permiso_id: req.body.tipo_permiso_id,
-                    fecha_inicio: req.body.fecha_inicio,
-                    fecha_fin: req.body.fecha_fin || req.body.fecha_inicio,
-                    motivo: req.body.motivo,
-                    estado: 'PENDIENTE'
-                }
-            });
+            console.log('❌ Supabase no configurado');
+            return res.status(500).json({ error: 'Base de datos no configurada' });
         }
 
         const { tipo_permiso_id, fecha_inicio, fecha_fin, motivo, observaciones } = req.body;
