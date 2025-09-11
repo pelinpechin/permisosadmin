@@ -1311,9 +1311,11 @@
                     
                     mostrarToast('success', 'Solicitud de permiso creada exitosamente');
                     
-                    // Recargar datos
-                    await cargarSolicitudes();
-                    await cargarDashboard();
+                    // Esperar un momento para que la DB se actualice
+                    setTimeout(async () => {
+                        await cargarSolicitudes();
+                        await cargarDashboard();
+                    }, 1000);
                     
                 } else {
                     throw new Error(data.message || 'Error al crear la solicitud');
