@@ -775,6 +775,8 @@ app.post('/api/solicitudes-empleado/crear', verifyToken, async (req, res) => {
         };
 
         console.log('📝 Intentando insertar en DB:', solicitudData);
+        console.log('👤 Usuario ID:', req.user.id);
+        console.log('🗄️ Supabase configurado:', !!supabase);
 
         // NUEVA ESTRATEGIA: Múltiples intentos de inserción
         let solicitud = null;

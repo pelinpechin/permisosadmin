@@ -1296,6 +1296,9 @@
             }
             
             try {
+                console.log('📤 Enviando datos al servidor:', formData);
+                console.log('🔑 Token:', token ? 'Presente' : 'Ausente');
+                
                 const response = await fetch('/api/solicitudes-empleado/crear', {
                     method: 'POST',
                     headers: {
