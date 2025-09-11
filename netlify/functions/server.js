@@ -128,14 +128,17 @@ app.post('/api/crear-permiso', async (req, res) => {
             return res.status(500).json({ error: 'Base de datos no configurada' });
         }
 
-        // Datos a insertar (estructura mínima)
+        // Datos a insertar (estructura correcta según tabla real)
         const solicitud = {
             empleado_id: user.id,
             tipo_permiso_id: parseInt(tipo_permiso_id) || 1,
+            fecha_solicitud: new Date().toISOString().split('T')[0], // Fecha de hoy
             fecha_desde: fecha_desde || '2025-01-14',
             fecha_hasta: fecha_desde || '2025-01-14', 
             motivo: motivo || 'Trámites personales',
-            estado: 'PENDIENTE'
+            observaciones: 'Solicitud creada desde portal empleado',
+            estado: 'PENDIENTE',
+            visto_por_supervisor: false
         };
 
         console.log('📝 Insertando:', solicitud);
