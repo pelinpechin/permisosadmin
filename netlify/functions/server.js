@@ -1946,34 +1946,66 @@ app.get('/api/solicitudes-empleado/pendientes-aprobacion', verifyToken, async (r
 
         console.log('🔍 Buscando solicitudes para usuario:', usuarioNombre, 'ID:', usuarioId);
 
-        // CASO ESPECIAL: Andrea ve solicitudes de Francisco
+        // CASO ESPECIAL: Andrea ve solicitudes de Francisco (con datos dinámicos)
         if (usuarioId === 46) { // Andrea
-            console.log('👩‍💼 Andrea - buscando solicitudes de Francisco...');
+            console.log('👩‍💼 Andrea - buscando solicitudes de subordinados...');
             
+            // 1. Buscar todos los empleados que tienen a Andrea como supervisor
+            const { data: subordinados, error: subordinadosError } = await supabase
+                .from('empleados')
+                .select('id, rut, nombre, cargo, supervisor')
+                .ilike('supervisor', '%andrea%naguelquin%')
+                .eq('activo', true);
+
+            if (subordinadosError) {
+                console.error('❌ Error buscando subordinados:', subordinadosError);
+            }
+
+            console.log('👥 Subordinados encontrados:', subordinados?.length || 0);
+            
+            // 2. Obtener IDs de subordinados (incluir Francisco como fallback)
+            let subordinadosIds = [67]; // Francisco como fallback
+            if (subordinados && subordinados.length > 0) {
+                subordinadosIds = subordinados.map(s => s.id);
+                console.log('📋 IDs de subordinados:', subordinadosIds);
+            }
+
+            // 3. Buscar solicitudes de todos los subordinados
             const { data: solicitudes, error } = await supabase
                 .from('solicitudes_permisos')
                 .select(`
                     *,
                     tipos_permisos(codigo, nombre, descripcion, color_hex)
                 `)
-                .eq('empleado_id', 67) // Francisco
+                .in('empleado_id', subordinadosIds)
                 .eq('estado', 'PENDIENTE')
                 .order('created_at', { ascending: false });
 
             if (error) {
-                console.error('❌ Error consultando solicitudes de Francisco:', error);
+                console.error('❌ Error consultando solicitudes:', error);
                 return res.status(500).json({ error: 'Error consultando solicitudes' });
             }
 
-            // Agregar información del empleado manualmente
-            const solicitudesConEmpleado = solicitudes.map(sol => ({
-                ...sol,
-                empleados: {
-                    nombre: 'Mancilla Vargas Francisco Gerardo',
-                    rut: '17.238.098-0',
-                    cargo: 'ADMINISTRATIVO DE RECAUDACION'
-                }
-            }));
+            // 4. Enriquecer cada solicitud con datos del empleado
+            const solicitudesConEmpleado = await Promise.all(
+                solicitudes.map(async (sol) => {
+                    // Buscar datos del empleado
+                    const { data: empleado } = await supabase
+                        .from('empleados')
+                        .select('id, rut, nombre, cargo')
+                        .eq('id', sol.empleado_id)
+                        .single();
+
+                    return {
+                        ...sol,
+                        empleados: empleado || {
+                            nombre: 'Empleado no encontrado',
+                            rut: 'N/A',
+                            cargo: 'N/A'
+                        }
+                    };
+                })
+            );
 
             console.log('✅ Solicitudes encontradas para Andrea:', solicitudesConEmpleado.length);
 
