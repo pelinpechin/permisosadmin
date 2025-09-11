@@ -105,6 +105,35 @@ app.post('/api/test-post', (req, res) => {
     });
 });
 
+// TEMPORAL: Endpoint para listar empleados
+app.get('/api/debug/empleados', async (req, res) => {
+    try {
+        if (!supabase) {
+            return res.status(500).json({ error: 'Base de datos no configurada' });
+        }
+
+        const { data: empleados, error } = await supabase
+            .from('empleados')
+            .select('id, rut, nombre, cargo, supervisor, visualizacion, autorizacion, activo')
+            .order('nombre');
+
+        if (error) {
+            console.error('Error consultando empleados:', error);
+            return res.status(500).json({ error: 'Error consultando base de datos' });
+        }
+
+        res.json({
+            success: true,
+            empleados: empleados,
+            total: empleados.length
+        });
+
+    } catch (error) {
+        console.error('Error en debug empleados:', error);
+        res.status(500).json({ error: 'Error interno: ' + error.message });
+    }
+});
+
 // Endpoint de prueba para crear solicitud (simple)
 app.post('/api/solicitudes-empleado/crear-test', verifyToken, async (req, res) => {
     try {
