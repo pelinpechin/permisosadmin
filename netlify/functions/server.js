@@ -573,23 +573,75 @@ app.get('/api/solicitudes-empleado/dashboard', verifyToken, async (req, res) => 
 // Endpoint para historial de solicitudes
 app.get('/api/solicitudes-empleado/historial', verifyToken, async (req, res) => {
     try {
+        console.log('📜 === HISTORIAL SOLICITUDES ===');
+        console.log('📜 Usuario:', req.user);
+        
         if (req.user.type !== 'empleado') {
             return res.status(403).json({ error: 'Acceso denegado' });
         }
 
         if (!supabase) {
-            return res.status(500).json({ error: 'Base de datos no configurada' });
+            console.log('❌ Supabase no configurado - devolviendo historial vacío');
+            return res.json({
+                success: true,
+                data: [],
+                message: 'Base de datos no configurada - historial simulado'
+            });
         }
 
-        // Por ahora devolver historial vacío
+        const empleadoId = req.user.id;
+        console.log('📜 Consultando solicitudes para empleado ID:', empleadoId);
+
+        // Consultar solicitudes del empleado con información de tipos de permisos
+        const { data: solicitudes, error } = await supabase
+            .from('solicitudes_permisos')
+            .select(`
+                *,
+                tipos_permisos!inner(codigo, nombre, descripcion, color_hex)
+            `)
+            .eq('empleado_id', empleadoId)
+            .order('created_at', { ascending: false });
+
+        if (error) {
+            console.error('❌ Error consultando historial:', error);
+            return res.status(500).json({ 
+                error: 'Error consultando historial: ' + error.message,
+                details: error
+            });
+        }
+
+        console.log('📜 Solicitudes encontradas:', solicitudes ? solicitudes.length : 0);
+
+        // Formatear respuesta
+        const historialFormateado = solicitudes.map(solicitud => ({
+            id: solicitud.id,
+            tipo_permiso: {
+                codigo: solicitud.tipos_permisos.codigo,
+                nombre: solicitud.tipos_permisos.nombre,
+                color: solicitud.tipos_permisos.color_hex
+            },
+            fecha_desde: solicitud.fecha_desde,
+            fecha_hasta: solicitud.fecha_hasta,
+            motivo: solicitud.motivo,
+            observaciones: solicitud.observaciones,
+            estado: solicitud.estado,
+            fecha_solicitud: solicitud.created_at,
+            fecha_aprobacion: solicitud.fecha_aprobacion,
+            fecha_rechazo: solicitud.fecha_rechazo,
+            motivo_rechazo: solicitud.motivo_rechazo
+        }));
+
         res.json({
             success: true,
-            data: []
+            data: historialFormateado
         });
 
     } catch (error) {
-        console.error('Error en historial:', error);
-        res.status(500).json({ error: 'Error interno del servidor' });
+        console.error('💥 Error en historial:', error);
+        res.status(500).json({ 
+            error: 'Error interno del servidor: ' + error.message,
+            stack: error.stack
+        });
     }
 });
 
