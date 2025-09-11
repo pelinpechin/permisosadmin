@@ -105,6 +105,68 @@ app.post('/api/test-post', (req, res) => {
     });
 });
 
+// SIMPLE: Endpoint para crear solicitudes reales
+app.post('/api/crear-permiso', async (req, res) => {
+    try {
+        console.log('🎯 CREAR PERMISO - Body:', req.body);
+        const { empleado_id, tipo_permiso_id, fecha_desde, motivo, token } = req.body;
+
+        // Verificar token simple
+        if (!token) {
+            return res.status(401).json({ error: 'Token requerido' });
+        }
+
+        let user;
+        try {
+            user = jwt.verify(token, JWT_SECRET);
+            console.log('✅ Usuario verificado:', user.nombre);
+        } catch (err) {
+            return res.status(401).json({ error: 'Token inválido' });
+        }
+
+        if (!supabase) {
+            return res.status(500).json({ error: 'Base de datos no configurada' });
+        }
+
+        // Datos a insertar (estructura mínima)
+        const solicitud = {
+            empleado_id: user.id,
+            tipo_permiso_id: parseInt(tipo_permiso_id) || 1,
+            fecha_desde: fecha_desde || '2025-01-14',
+            fecha_hasta: fecha_desde || '2025-01-14', 
+            motivo: motivo || 'Trámites personales',
+            estado: 'PENDIENTE'
+        };
+
+        console.log('📝 Insertando:', solicitud);
+
+        // Inserción más simple posible
+        const { data, error } = await supabase
+            .from('solicitudes_permisos')
+            .insert(solicitud);
+
+        if (error) {
+            console.error('❌ Error Supabase:', error);
+            return res.status(500).json({ 
+                error: 'Error guardando en base de datos',
+                details: error.message
+            });
+        }
+
+        console.log('✅ Permiso guardado exitosamente');
+
+        res.json({
+            success: true,
+            message: 'Permiso guardado exitosamente en la base de datos',
+            data: solicitud
+        });
+
+    } catch (error) {
+        console.error('💥 Error:', error);
+        res.status(500).json({ error: 'Error interno' });
+    }
+});
+
 // TEMPORAL: Endpoint para listar empleados
 app.get('/api/debug/empleados', async (req, res) => {
     try {
