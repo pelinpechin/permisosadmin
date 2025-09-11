@@ -970,9 +970,15 @@
                 console.log('📋 Datos de historial recibidos:', data);
                 
                 if (response.ok) {
-                    console.log('📊 Solicitudes encontradas:', data.data ? data.data.length : 0);
-                    mostrarSolicitudes(data.data || []);
-                    actualizarResumen(data.data || []);
+                    // Obtener solicitudes locales (pendientes)
+                    const solicitudesLocales = JSON.parse(localStorage.getItem('solicitudes') || '[]');
+                    
+                    // Combinar solicitudes del servidor con las locales
+                    const todasLasSolicitudes = [...solicitudesLocales, ...(data.data || [])];
+                    
+                    console.log('📊 Total solicitudes (locales + servidor):', todasLasSolicitudes.length);
+                    mostrarSolicitudes(todasLasSolicitudes);
+                    actualizarResumen(todasLasSolicitudes);
                 } else {
                     throw new Error(data.message || 'Error al cargar solicitudes');
                 }
@@ -1315,16 +1321,30 @@
                     bootstrap.Modal.getInstance(document.getElementById('modalNuevoPermiso')).hide();
                     document.getElementById('formNuevoPermiso').reset();
                     
-                    mostrarToast('success', 'Solicitud de permiso creada exitosamente');
-                    console.log('✅ Recargando datos después de crear solicitud...');
+                    // AGREGAR SOLICITUD DIRECTAMENTE AL DOM SIN ESPERAR DB
+                    const nuevaSolicitud = {
+                        id: Date.now(),
+                        tipo_permiso: {
+                            codigo: tipoSeleccionado.codigo,
+                            nombre: tipoSeleccionado.nombre,
+                            color: '#ffc107'
+                        },
+                        fecha_desde: formData.fecha_inicio,
+                        fecha_hasta: formData.fecha_fin || formData.fecha_inicio,
+                        motivo: formData.motivo,
+                        observaciones: formData.observaciones || null,
+                        estado: 'PENDIENTE',
+                        fecha_solicitud: new Date().toISOString()
+                    };
                     
-                    // Esperar un momento para que la DB se actualice
-                    setTimeout(async () => {
-                        console.log('🔄 Iniciando recarga de solicitudes...');
-                        await cargarSolicitudes();
-                        await cargarDashboard();
-                        console.log('✅ Recarga completada');
-                    }, 1000);
+                    // Obtener solicitudes actuales y agregar la nueva al inicio
+                    const container = document.getElementById('listaSolicitudes');
+                    const solicitudesActuales = JSON.parse(localStorage.getItem('solicitudes') || '[]');
+                    solicitudesActuales.unshift(nuevaSolicitud);
+                    localStorage.setItem('solicitudes', JSON.stringify(solicitudesActuales));
+                    
+                    mostrarSolicitudes(solicitudesActuales);
+                    mostrarToast('success', 'Solicitud de permiso creada exitosamente - Estado: PENDIENTE');
                     
                 } else {
                     throw new Error(data.message || 'Error al crear la solicitud');
