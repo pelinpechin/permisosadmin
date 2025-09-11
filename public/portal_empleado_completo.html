@@ -99,6 +99,32 @@
             box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.25);
         }
         
+        /* Estilos para pestañas */
+        .nav-tabs .nav-link {
+            color: #667eea;
+            border: none;
+            border-bottom: 3px solid transparent;
+            background: none;
+            font-weight: 500;
+        }
+        
+        .nav-tabs .nav-link:hover {
+            border-color: transparent transparent #667eea transparent;
+            color: #5a6fd8;
+        }
+        
+        .nav-tabs .nav-link.active {
+            color: #667eea;
+            background: none;
+            border-color: transparent transparent #667eea transparent;
+            font-weight: 600;
+        }
+        
+        .card-header-tabs {
+            border-bottom: 1px solid #dee2e6;
+            margin-bottom: -1px;
+        }
+        
         .balance-card {
             background: linear-gradient(45deg, #f8f9fa, #e9ecef);
             border-radius: 15px;
@@ -472,41 +498,63 @@
                 <div class="row">
                     <!-- Columna Principal -->
                     <div class="col-lg-8">
-                        <!-- Sección Mis Solicitudes -->
+                        <!-- Sistema de Pestañas -->
                         <div class="section">
                             <div class="data-card card">
-                                <div class="card-header d-flex justify-content-between align-items-center">
-                                    <h5><i class="fas fa-list me-2"></i>Mis Solicitudes de Permisos</h5>
-                                    <button class="btn btn-primary" onclick="mostrarModalNuevoPermiso()">
-                                        <i class="fas fa-plus"></i> Nueva Solicitud
-                                    </button>
+                                <!-- Pestañas de Navegación -->
+                                <div class="card-header">
+                                    <ul class="nav nav-tabs card-header-tabs" id="solicitudesTabs" role="tablist">
+                                        <li class="nav-item" role="presentation">
+                                            <button class="nav-link active" id="mis-solicitudes-tab" data-bs-toggle="tab" data-bs-target="#mis-solicitudes" type="button" role="tab">
+                                                <i class="fas fa-list me-2"></i>Mis Solicitudes
+                                            </button>
+                                        </li>
+                                        <li class="nav-item" role="presentation" id="tab-supervision" style="display: none;">
+                                            <button class="nav-link" id="supervision-tab" data-bs-toggle="tab" data-bs-target="#supervision" type="button" role="tab">
+                                                <i class="fas fa-clipboard-check me-2"></i>Por Autorizar
+                                            </button>
+                                        </li>
+                                    </ul>
                                 </div>
-                                <div class="card-body" id="listaSolicitudes">
-                                    <div class="loading-spinner">
-                                        <div class="spinner-border text-primary" role="status">
-                                            <span class="visually-hidden">Cargando...</span>
+                                
+                                <!-- Contenido de las Pestañas -->
+                                <div class="card-body">
+                                    <div class="tab-content" id="solicitudesTabContent">
+                                        <!-- Pestaña Mis Solicitudes -->
+                                        <div class="tab-pane fade show active" id="mis-solicitudes" role="tabpanel">
+                                            <div class="d-flex justify-content-between align-items-center mb-3">
+                                                <h5 class="mb-0">Mis Solicitudes de Permisos</h5>
+                                                <button class="btn btn-primary" onclick="mostrarModalNuevoPermiso()">
+                                                    <i class="fas fa-plus"></i> Nueva Solicitud
+                                                </button>
+                                            </div>
+                                            <div id="listaSolicitudes">
+                                                <div class="loading-spinner">
+                                                    <div class="spinner-border text-primary" role="status">
+                                                        <span class="visually-hidden">Cargando...</span>
+                                                    </div>
+                                                    <span class="ms-2">Cargando solicitudes...</span>
+                                                </div>
+                                            </div>
                                         </div>
-                                        <span class="ms-2">Cargando solicitudes...</span>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Sección Supervisión (solo para supervisores) -->
-                        <div class="section" id="seccionSupervision" style="display: none;">
-                            <div class="data-card card">
-                                <div class="card-header d-flex justify-content-between align-items-center">
-                                    <h5><i class="fas fa-clipboard-check me-2"></i>Permisos por Autorizar</h5>
-                                    <button class="btn btn-outline-primary" onclick="cargarSolicitudesSubordinados()">
-                                        <i class="fas fa-refresh"></i> Actualizar
-                                    </button>
-                                </div>
-                                <div class="card-body" id="listaSolicitudesSubordinados">
-                                    <div class="loading-spinner">
-                                        <div class="spinner-border text-primary" role="status">
-                                            <span class="visually-hidden">Cargando...</span>
+                                        
+                                        <!-- Pestaña Supervisión -->
+                                        <div class="tab-pane fade" id="supervision" role="tabpanel">
+                                            <div class="d-flex justify-content-between align-items-center mb-3">
+                                                <h5 class="mb-0">Permisos por Autorizar</h5>
+                                                <button class="btn btn-outline-primary" onclick="cargarSolicitudesSubordinados()">
+                                                    <i class="fas fa-refresh"></i> Actualizar
+                                                </button>
+                                            </div>
+                                            <div id="listaSolicitudesSubordinados">
+                                                <div class="loading-spinner">
+                                                    <div class="spinner-border text-primary" role="status">
+                                                        <span class="visually-hidden">Cargando...</span>
+                                                    </div>
+                                                    <span class="ms-2">Cargando permisos por autorizar...</span>
+                                                </div>
+                                            </div>
                                         </div>
-                                        <span class="ms-2">Cargando permisos por autorizar...</span>
                                     </div>
                                 </div>
                             </div>
@@ -2001,10 +2049,10 @@
                 const data = await response.json();
                 console.log('Andrea encontrada:', data);
                 
-                // Si es Andrea, mostrar sección forzadamente
+                // Si es Andrea, mostrar pestaña forzadamente
                 if (data.empleado && data.empleado.nombre.toLowerCase().includes('andrea')) {
                     console.log('✅ FORZANDO supervisión para Andrea');
-                    document.getElementById('seccionSupervision').style.display = 'block';
+                    document.getElementById('tab-supervision').style.display = 'block';
                     cargarSolicitudesSubordinados();
                 }
                 
@@ -2032,12 +2080,12 @@
             console.log('- Es supervisor:', esSupervisor);
             
             if (esSupervisor) {
-                console.log('✅ Mostrando sección de supervisión');
-                document.getElementById('seccionSupervision').style.display = 'block';
+                console.log('✅ Mostrando pestaña de supervisión');
+                document.getElementById('tab-supervision').style.display = 'block';
                 cargarSolicitudesSubordinados();
             } else {
-                console.log('❌ No es supervisor - ocultando sección');
-                document.getElementById('seccionSupervision').style.display = 'none';
+                console.log('❌ No es supervisor - ocultando pestaña');
+                document.getElementById('tab-supervision').style.display = 'none';
             }
         }
         
