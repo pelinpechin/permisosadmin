@@ -491,6 +491,26 @@
                                 </div>
                             </div>
                         </div>
+
+                        <!-- Sección Supervisión (solo para supervisores) -->
+                        <div class="section" id="seccionSupervision" style="display: none;">
+                            <div class="data-card card">
+                                <div class="card-header d-flex justify-content-between align-items-center">
+                                    <h5><i class="fas fa-clipboard-check me-2"></i>Solicitudes de Subordinados</h5>
+                                    <button class="btn btn-outline-primary" onclick="cargarSolicitudesSubordinados()">
+                                        <i class="fas fa-refresh"></i> Actualizar
+                                    </button>
+                                </div>
+                                <div class="card-body" id="listaSolicitudesSubordinados">
+                                    <div class="loading-spinner">
+                                        <div class="spinner-border text-primary" role="status">
+                                            <span class="visually-hidden">Cargando...</span>
+                                        </div>
+                                        <span class="ms-2">Cargando solicitudes de subordinados...</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                     
                     <!-- Columna Lateral -->
@@ -937,6 +957,9 @@
                     empleadoInfo = data.data.empleado;
                     actualizarBalancePermisos(data.data.empleado, data.data.permisos_utilizados);
                     mostrarDatosPersonales(data.data.empleado);
+                    
+                    // Verificar si es supervisor y mostrar sección de supervisión
+                    verificarSiEsSupervisor(data.data.empleado);
                     
                     // Manejar permisos del usuario y botón de administrador
                     manejarPermisosUsuario(data.data.permisos_usuario);
@@ -1958,6 +1981,156 @@
                 mostrarToast('error', error.message);
             }
         });
+        
+        // =================== FUNCIONALIDAD DE SUPERVISIÓN ===================
+        
+        // Verificar si el usuario es supervisor y mostrar sección
+        function verificarSiEsSupervisor(empleadoInfo) {
+            // Si el empleado tiene permisos de visualización o autorización, mostrar la sección de supervisión
+            const esSupervisor = empleadoInfo && (empleadoInfo.visualizacion === true || empleadoInfo.autorizacion === true);
+            
+            if (esSupervisor) {
+                document.getElementById('seccionSupervision').style.display = 'block';
+                cargarSolicitudesSubordinados();
+            }
+        }
+        
+        // Cargar solicitudes de subordinados
+        async function cargarSolicitudesSubordinados() {
+            try {
+                const response = await fetch('/api/solicitudes-empleado/subordinados', {
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+                
+                const data = await response.json();
+                console.log('👥 Solicitudes de subordinados:', data);
+                
+                if (response.ok) {
+                    mostrarSolicitudesSubordinados(data.data || []);
+                } else {
+                    throw new Error(data.message || 'Error al cargar solicitudes de subordinados');
+                }
+                
+            } catch (error) {
+                console.error('Error:', error);
+                document.getElementById('listaSolicitudesSubordinados').innerHTML = `
+                    <div class="alert alert-danger">
+                        <i class="fas fa-exclamation-triangle me-2"></i>
+                        Error al cargar solicitudes de subordinados: ${error.message}
+                    </div>
+                `;
+            }
+        }
+        
+        // Mostrar solicitudes de subordinados
+        function mostrarSolicitudesSubordinados(solicitudes) {
+            const container = document.getElementById('listaSolicitudesSubordinados');
+            
+            if (solicitudes.length === 0) {
+                container.innerHTML = `
+                    <div class="text-center p-5">
+                        <i class="fas fa-clipboard-check" style="font-size: 4rem; opacity: 0.3; color: #dee2e6;"></i>
+                        <h5 class="mt-3 text-muted">No hay solicitudes pendientes</h5>
+                        <p class="text-muted">No tienes solicitudes de subordinados por revisar</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            const html = solicitudes.map(solicitud => `
+                <div class="permiso-card card status-${solicitud.estado.toLowerCase()}">
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-8">
+                                <h6 class="card-title">
+                                    <span class="badge" style="background-color: ${solicitud.tipo_permiso.color}">
+                                        ${solicitud.tipo_permiso.codigo}
+                                    </span>
+                                    ${solicitud.tipo_permiso.nombre}
+                                </h6>
+                                <p class="mb-1"><strong>Empleado:</strong> ${solicitud.empleado.nombre}</p>
+                                <p class="mb-1"><strong>RUT:</strong> ${solicitud.empleado.rut}</p>
+                                <p class="mb-1"><strong>Cargo:</strong> ${solicitud.empleado.cargo}</p>
+                                <p class="mb-1"><strong>Fecha:</strong> ${solicitud.fecha_desde}${solicitud.fecha_hasta !== solicitud.fecha_desde ? ' al ' + solicitud.fecha_hasta : ''}</p>
+                                <p class="mb-1"><strong>Motivo:</strong> ${solicitud.motivo}</p>
+                                <p class="text-muted small">Solicitado: ${new Date(solicitud.fecha_solicitud).toLocaleDateString()}</p>
+                            </div>
+                            <div class="col-md-4 text-end">
+                                <div class="btn-group-vertical gap-2">
+                                    <button class="btn btn-success btn-sm" onclick="aprobarSolicitud(${solicitud.id})">
+                                        <i class="fas fa-check me-1"></i> Aprobar
+                                    </button>
+                                    <button class="btn btn-danger btn-sm" onclick="rechazarSolicitud(${solicitud.id})">
+                                        <i class="fas fa-times me-1"></i> Rechazar
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+            
+            container.innerHTML = html;
+        }
+        
+        // Aprobar solicitud
+        async function aprobarSolicitud(id) {
+            if (!confirm('¿Estás seguro de aprobar esta solicitud?')) return;
+            
+            try {
+                const response = await fetch(`/api/solicitudes-empleado/aprobar-supervisor/${id}`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({})
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    mostrarToast('success', 'Solicitud aprobada exitosamente');
+                    cargarSolicitudesSubordinados(); // Recargar lista
+                } else {
+                    throw new Error(data.error || 'Error al aprobar solicitud');
+                }
+                
+            } catch (error) {
+                mostrarToast('error', error.message);
+            }
+        }
+        
+        // Rechazar solicitud
+        async function rechazarSolicitud(id) {
+            const motivo = prompt('Ingresa el motivo del rechazo:');
+            if (!motivo) return;
+            
+            try {
+                const response = await fetch(`/api/solicitudes-empleado/rechazar-supervisor/${id}`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ motivo_rechazo: motivo })
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    mostrarToast('success', 'Solicitud rechazada');
+                    cargarSolicitudesSubordinados(); // Recargar lista
+                } else {
+                    throw new Error(data.error || 'Error al rechazar solicitud');
+                }
+                
+            } catch (error) {
+                mostrarToast('error', error.message);
+            }
+        }
     </script>
 </body>
 </html>

@@ -1021,6 +1021,99 @@ app.post('/api/solicitudes-empleado/crear', verifyToken, async (req, res) => {
     }
 });
 
+// Endpoint para obtener solicitudes de subordinados (para supervisores)
+app.get('/api/solicitudes-empleado/subordinados', verifyToken, async (req, res) => {
+    try {
+        console.log('👁️ === SOLICITUDES DE SUBORDINADOS ===');
+        console.log('👁️ Supervisor:', req.user);
+        
+        if (!supabase) {
+            return res.status(500).json({ error: 'Base de datos no configurada' });
+        }
+
+        const supervisorId = req.user.id;
+        
+        // Buscar empleados que tienen este usuario como supervisor
+        const { data: subordinados, error: subordinadosError } = await supabase
+            .from('empleados')
+            .select('id, nombre, rut, cargo')
+            .eq('supervisor', supervisorId)
+            .eq('activo', true);
+
+        if (subordinadosError) {
+            console.error('❌ Error consultando subordinados:', subordinadosError);
+            return res.status(500).json({ error: 'Error consultando subordinados' });
+        }
+
+        console.log('👥 Subordinados encontrados:', subordinados ? subordinados.length : 0);
+        
+        if (!subordinados || subordinados.length === 0) {
+            return res.json({
+                success: true,
+                data: [],
+                message: 'No tienes empleados bajo tu supervisión'
+            });
+        }
+
+        // Obtener IDs de subordinados
+        const subordinadosIds = subordinados.map(emp => emp.id);
+        
+        // Consultar solicitudes pendientes de estos empleados
+        const { data: solicitudes, error: solicitudesError } = await supabase
+            .from('solicitudes_permisos')
+            .select(`
+                *,
+                empleados!inner(nombre, rut, cargo),
+                tipos_permisos!inner(codigo, nombre, descripcion, color_hex)
+            `)
+            .in('empleado_id', subordinadosIds)
+            .eq('estado', 'PENDIENTE')
+            .order('created_at', { ascending: false });
+
+        if (solicitudesError) {
+            console.error('❌ Error consultando solicitudes:', solicitudesError);
+            return res.status(500).json({ error: 'Error consultando solicitudes' });
+        }
+
+        console.log('📋 Solicitudes pendientes encontradas:', solicitudes ? solicitudes.length : 0);
+
+        // Formatear respuesta
+        const solicitudesFormateadas = solicitudes.map(solicitud => ({
+            id: solicitud.id,
+            empleado: {
+                id: solicitud.empleado_id,
+                nombre: solicitud.empleados.nombre,
+                rut: solicitud.empleados.rut,
+                cargo: solicitud.empleados.cargo
+            },
+            tipo_permiso: {
+                codigo: solicitud.tipos_permisos.codigo,
+                nombre: solicitud.tipos_permisos.nombre,
+                color: solicitud.tipos_permisos.color_hex
+            },
+            fecha_desde: solicitud.fecha_desde,
+            fecha_hasta: solicitud.fecha_hasta,
+            motivo: solicitud.motivo,
+            observaciones: solicitud.observaciones,
+            estado: solicitud.estado,
+            fecha_solicitud: solicitud.created_at
+        }));
+
+        res.json({
+            success: true,
+            data: solicitudesFormateadas,
+            subordinados: subordinados
+        });
+
+    } catch (error) {
+        console.error('💥 Error en subordinados:', error);
+        res.status(500).json({ 
+            error: 'Error interno del servidor: ' + error.message,
+            stack: error.stack
+        });
+    }
+});
+
 // Endpoint para aprobar solicitud (supervisor - primer nivel)
 app.post('/api/solicitudes-empleado/aprobar-supervisor/:id', verifyToken, async (req, res) => {
     try {
