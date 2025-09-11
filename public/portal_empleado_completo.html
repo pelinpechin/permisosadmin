@@ -2096,8 +2096,8 @@
             if (empleadoInfo && empleadoInfo.nombre) {
                 const nombre = empleadoInfo.nombre.toLowerCase();
                 
-                // Lista de supervisores conocidos
-                const supervisores = ['andrea', 'ronny', 'cisterna'];
+                // Lista de supervisores conocidos (incluye toda la jerarquía)
+                const supervisores = ['andrea', 'ronny', 'cisterna', 'patricio', 'bravo'];
                 
                 const esSuperisorJerarquia = supervisores.some(supervisor => 
                     nombre.includes(supervisor)

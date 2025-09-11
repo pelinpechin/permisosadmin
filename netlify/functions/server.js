@@ -1054,8 +1054,10 @@ app.get('/api/solicitudes-empleado/subordinados', verifyToken, async (req, res) 
         // Mapeo específico de supervisores según la jerarquía real
         const jerarquiaSupervisores = {
             'andrea': ['francisco', 'mancilla'],
-            'ronny': ['miguel', 'rodriguez'],
-            'cisterna': ['miguel', 'rodriguez']
+            'ronny': ['miguel', 'rodriguez'], 
+            'cisterna': ['miguel', 'rodriguez'],
+            'patricio': [], // Patricio es autoridad máxima
+            'bravo': []     // Patricio Bravo es autoridad máxima
         };
         
         console.log('🔍 Verificando jerarquía para:', supervisorNombre);
@@ -1101,7 +1103,21 @@ app.get('/api/solicitudes-empleado/subordinados', verifyToken, async (req, res) 
         // Obtener IDs de subordinados
         const subordinadosIds = todosLosSubordinados.map(emp => emp.id);
         
-        // Consultar solicitudes pendientes de estos empleados
+        // Definir qué estados puede ver cada supervisor
+        const estadosPermitidos = [];
+        const nombre = supervisorNombre.toLowerCase();
+        
+        if (nombre.includes('ronny') || nombre.includes('cisterna') || nombre.includes('patricio') || nombre.includes('bravo')) {
+            // Supervisores de nivel superior ven solicitudes ya aprobadas por supervisor directo
+            estadosPermitidos.push('APROBADO_SUPERVISOR', 'PENDIENTE');
+            console.log('🔝 Supervisor de nivel superior - ve APROBADO_SUPERVISOR y PENDIENTE');
+        } else {
+            // Supervisores directos solo ven solicitudes pendientes
+            estadosPermitidos.push('PENDIENTE');
+            console.log('👥 Supervisor directo - solo ve PENDIENTE');
+        }
+        
+        // Consultar solicitudes según nivel del supervisor
         const { data: solicitudes, error: solicitudesError } = await supabase
             .from('solicitudes_permisos')
             .select(`
@@ -1110,7 +1126,7 @@ app.get('/api/solicitudes-empleado/subordinados', verifyToken, async (req, res) 
                 tipos_permisos!inner(codigo, nombre, descripcion, color_hex)
             `)
             .in('empleado_id', subordinadosIds)
-            .eq('estado', 'PENDIENTE')
+            .in('estado', estadosPermitidos)
             .order('created_at', { ascending: false });
 
         if (solicitudesError) {
@@ -1157,11 +1173,20 @@ app.get('/api/solicitudes-empleado/subordinados', verifyToken, async (req, res) 
     }
 });
 
-// Endpoint para aprobar solicitud (supervisor - primer nivel)
+// Endpoint para aprobar solicitud (multinivel)
 app.post('/api/solicitudes-empleado/aprobar-supervisor/:id', verifyToken, async (req, res) => {
     try {
         console.log('👁️ === APROBACION SUPERVISOR ===');
         console.log('👁️ Usuario:', req.user);
+        
+        const supervisorNombre = req.user.nombre || '';
+        const nombre = supervisorNombre.toLowerCase();
+        
+        // Determinar el tipo de supervisor
+        const esAutoridad = nombre.includes('ronny') || nombre.includes('cisterna') || 
+                           nombre.includes('patricio') || nombre.includes('bravo');
+        
+        console.log('🔍 Es autoridad máxima:', esAutoridad);
         console.log('👁️ Solicitud ID:', req.params.id);
         console.log('👁️ Body:', req.body);
         
@@ -1197,14 +1222,31 @@ app.post('/api/solicitudes-empleado/aprobar-supervisor/:id', verifyToken, async 
             });
         }
 
-        // Actualizar solicitud a APROBADO_SUPERVISOR
+        // Determinar el nuevo estado según el tipo de supervisor
+        let nuevoEstado, mensaje;
+        
+        if (esAutoridad) {
+            // Autoridad máxima → APROBADO final
+            nuevoEstado = 'APROBADO';
+            mensaje = 'Solicitud aprobada definitivamente por autoridad superior';
+        } else {
+            // Supervisor directo → APROBADO_SUPERVISOR (necesita autorización final)
+            nuevoEstado = 'APROBADO_SUPERVISOR';
+            mensaje = 'Solicitud aprobada por supervisor. Pendiente de autorización final.';
+        }
+        
+        console.log(`🔄 Actualizando estado a: ${nuevoEstado}`);
+        
+        // Actualizar solicitud
         const { error: updateError } = await supabase
             .from('solicitudes_permisos')
             .update({
-                estado: 'APROBADO_SUPERVISOR',
-                aprobado_supervisor_por: supervisorId,
+                estado: nuevoEstado,
+                aprobado_supervisor_por: req.user.id,
                 aprobado_supervisor_fecha: new Date().toISOString(),
-                observaciones_supervisor: observaciones || null,
+                fecha_aprobacion: esAutoridad ? new Date().toISOString() : null,
+                aprobado_por: esAutoridad ? req.user.id : null,
+                observaciones_supervisor: req.body.observaciones || null,
                 updated_at: new Date().toISOString()
             })
             .eq('id', id);
@@ -1219,11 +1261,11 @@ app.post('/api/solicitudes-empleado/aprobar-supervisor/:id', verifyToken, async 
 
         res.json({
             success: true,
-            message: 'Solicitud aprobada por supervisor. Pendiente de autorización final.',
+            message: mensaje,
             data: {
                 id: parseInt(id),
-                estado: 'APROBADO_SUPERVISOR',
-                siguiente_paso: 'Autorización final'
+                estado: nuevoEstado,
+                siguiente_paso: esAutoridad ? 'Completado' : 'Autorización final'
             }
         });
 
