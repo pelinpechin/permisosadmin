@@ -260,6 +260,84 @@ app.post('/api/empleados-auth/login', async (req, res) => {
     }
 });
 
+// Ruta para crear contraseña inicial
+app.post('/api/empleados-auth/crear-password', async (req, res) => {
+    try {
+        console.log('🔐 === CREAR PASSWORD ===');
+        console.log('🔐 Body:', req.body);
+        
+        const { rut, password } = req.body;
+        
+        if (!rut || !password) {
+            return res.status(400).json({ error: 'RUT y contraseña son requeridos' });
+        }
+
+        if (!supabase) {
+            return res.status(500).json({ error: 'Base de datos no configurada' });
+        }
+
+        const rutNormalizado = normalizarRUT(rut);
+        
+        // Consultar empleados activos
+        const { data: empleados, error } = await supabase
+            .from('empleados')
+            .select('*')
+            .eq('activo', true);
+        
+        if (error) {
+            console.error('Error consultando empleados:', error);
+            return res.status(500).json({ error: 'Error consultando base de datos' });
+        }
+        
+        const empleado = empleados.find(emp => 
+            normalizarRUT(emp.rut) === rutNormalizado
+        );
+
+        if (!empleado) {
+            return res.status(404).json({ error: 'Empleado no encontrado o inactivo' });
+        }
+
+        if (empleado.password_hash) {
+            return res.status(400).json({ error: 'El empleado ya tiene contraseña configurada' });
+        }
+
+        // Hash de la contraseña
+        const saltRounds = 10;
+        const passwordHash = await bcrypt.hash(password, saltRounds);
+
+        // Actualizar empleado con password hash
+        const { error: updateError } = await supabase
+            .from('empleados')
+            .update({
+                password_hash: passwordHash,
+                email_verificado: true,
+                updated_at: new Date().toISOString()
+            })
+            .eq('id', empleado.id);
+
+        if (updateError) {
+            console.error('Error actualizando contraseña:', updateError);
+            return res.status(500).json({ error: 'Error actualizando contraseña' });
+        }
+
+        console.log('✅ Contraseña creada exitosamente para:', empleado.nombre);
+
+        res.json({
+            success: true,
+            message: 'Contraseña creada exitosamente. Ya puedes iniciar sesión.',
+            empleado: {
+                nombre: empleado.nombre,
+                rut: empleado.rut,
+                cargo: empleado.cargo
+            }
+        });
+        
+    } catch (error) {
+        console.error('Error creando contraseña:', error);
+        res.status(500).json({ error: 'Error interno del servidor' });
+    }
+});
+
 // Ruta de solicitar reset de contraseña
 app.post('/api/empleados-auth/solicitar-reset', async (req, res) => {
     try {
