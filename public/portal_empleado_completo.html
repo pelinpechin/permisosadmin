@@ -1270,9 +1270,22 @@
                 motivo: document.getElementById('motivo').value
             };
             
+            // Validaciones básicas
             if (!formData.tipo_permiso_id || !formData.fecha_inicio || !formData.motivo) {
                 mostrarToast('error', 'Tipo de permiso, fecha de inicio y motivo son requeridos');
                 return;
+            }
+            
+            // Validación especial para permisos sin goce (requieren fecha fin)
+            const tipoSeleccionado = tiposPermisosData.find(tipo => tipo.id == formData.tipo_permiso_id);
+            if (tipoSeleccionado && tipoSeleccionado.codigo === 'S' && !formData.fecha_fin) {
+                mostrarToast('error', 'Los permisos sin goce requieren fecha de inicio y fin');
+                return;
+            }
+            
+            // Para T, AM, PM: no enviar fecha_fin
+            if (tipoSeleccionado && ['T', 'AM', 'PM'].includes(tipoSeleccionado.codigo)) {
+                delete formData.fecha_fin;
             }
             
             try {
@@ -1446,9 +1459,45 @@
             }
         }
         
-        // Event listeners para validación de límites
-        document.getElementById('tipoPermiso').addEventListener('change', validarLimites);
+        // Event listeners para validación de límites y control de fechas
+        document.getElementById('tipoPermiso').addEventListener('change', function() {
+            validarLimites();
+            manejarFechaFinSegunTipo();
+        });
         document.getElementById('fechaInicio').addEventListener('change', validarLimites);
+        
+        // Función para mostrar/ocultar fecha fin según tipo de permiso
+        function manejarFechaFinSegunTipo() {
+            const tipoPermisoSelect = document.getElementById('tipoPermiso');
+            const fechaFinGroup = document.getElementById('fechaFin').closest('.mb-3');
+            const fechaFinInput = document.getElementById('fechaFin');
+            
+            if (!tipoPermisoSelect.value) {
+                fechaFinGroup.style.display = 'block';
+                return;
+            }
+            
+            // Buscar el tipo seleccionado
+            const tipoSeleccionado = tiposPermisosData.find(tipo => 
+                tipo.id == tipoPermisoSelect.value
+            );
+            
+            if (tipoSeleccionado) {
+                const codigo = tipoSeleccionado.codigo;
+                
+                if (codigo === 'S') {
+                    // Permisos sin goce: mostrar fecha fin (obligatoria)
+                    fechaFinGroup.style.display = 'block';
+                    fechaFinInput.required = true;
+                    fechaFinGroup.querySelector('label').innerHTML = 'Fecha hasta <span class="text-danger">*</span>';
+                } else {
+                    // T, AM, PM: ocultar fecha fin
+                    fechaFinGroup.style.display = 'none';
+                    fechaFinInput.required = false;
+                    fechaFinInput.value = ''; // Limpiar valor
+                }
+            }
+        }
         
         // === FUNCIONES AUXILIARES ===
         

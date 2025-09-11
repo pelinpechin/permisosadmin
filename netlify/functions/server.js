@@ -663,9 +663,16 @@ app.get('/api/solicitudes-empleado/tipos-permisos', verifyToken, async (req, res
             return res.status(500).json({ error: 'Error consultando tipos de permisos' });
         }
 
+        // Filtrar solo los tipos que puede solicitar un empleado
+        const tiposEmpleado = tipos.filter(tipo => 
+            ['T', 'AM', 'PM', 'S'].includes(tipo.codigo)
+        );
+
+        console.log('📋 Tipos de permisos filtrados para empleado:', tiposEmpleado.length);
+
         res.json({
             success: true,
-            data: tipos || []
+            data: tiposEmpleado || []
         });
 
     } catch (error) {
