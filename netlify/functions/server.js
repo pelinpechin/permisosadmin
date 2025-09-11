@@ -1047,23 +1047,26 @@ app.get('/api/solicitudes-empleado/subordinados', verifyToken, async (req, res) 
 
         console.log('👥 Subordinados encontrados:', subordinados ? subordinados.length : 0);
         
-        // TEMPORAL: Si es Andrea, incluir todos los empleados como subordinados
+        // TEMPORAL: Si es Andrea, incluir solo a Francisco Mancilla como subordinado
         const supervisorNombre = req.user.nombre || '';
         let todosLosSubordinados = subordinados || [];
         
         if (supervisorNombre.toLowerCase().includes('andrea')) {
-            console.log('🔧 EXPANDIENDO supervisión para Andrea - incluyendo TODOS los empleados');
+            console.log('🔧 CONFIGURANDO supervisión para Andrea - solo Francisco Mancilla');
             
-            // Buscar TODOS los empleados activos para que Andrea pueda supervisar a todos
-            const { data: todosEmpleados, error: todosError } = await supabase
+            // Buscar específicamente a Francisco Mancilla
+            const { data: francisco, error: franciscoError } = await supabase
                 .from('empleados')
                 .select('id, nombre, rut, cargo')
+                .ilike('nombre', '%francisco%mancilla%')
                 .eq('activo', true)
-                .neq('id', req.user.id); // Excluir a Andrea misma
+                .single();
                 
-            if (!todosError && todosEmpleados) {
-                todosLosSubordinados = todosEmpleados;
-                console.log(`👥 Andrea ahora supervisa a ${todosEmpleados.length} empleados`);
+            if (!franciscoError && francisco) {
+                todosLosSubordinados = [francisco];
+                console.log(`👥 Andrea supervisa solo a: ${francisco.nombre} (ID: ${francisco.id})`);
+            } else {
+                console.log('⚠️ No se encontró Francisco Mancilla para Andrea');
             }
         }
         
