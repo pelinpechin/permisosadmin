@@ -970,8 +970,10 @@
                 console.log('📋 Datos de historial recibidos:', data);
                 
                 if (response.ok) {
-                    // Obtener solicitudes locales (pendientes)
-                    const solicitudesLocales = JSON.parse(localStorage.getItem('solicitudes') || '[]');
+                    // Obtener solicitudes locales (pendientes) DEL USUARIO ESPECÍFICO
+                    const empleadoId = JSON.parse(atob(token.split('.')[1])).id;
+                    const keyUsuario = `solicitudes_${empleadoId}`;
+                    const solicitudesLocales = JSON.parse(localStorage.getItem(keyUsuario) || '[]');
                     
                     // Combinar solicitudes del servidor con las locales
                     const todasLasSolicitudes = [...solicitudesLocales, ...(data.data || [])];
@@ -1337,11 +1339,13 @@
                         fecha_solicitud: new Date().toISOString()
                     };
                     
-                    // Obtener solicitudes actuales y agregar la nueva al inicio
+                    // Obtener solicitudes actuales DEL USUARIO ESPECÍFICO y agregar la nueva al inicio
                     const container = document.getElementById('listaSolicitudes');
-                    const solicitudesActuales = JSON.parse(localStorage.getItem('solicitudes') || '[]');
+                    const empleadoId = JSON.parse(atob(token.split('.')[1])).id;
+                    const keyUsuario = `solicitudes_${empleadoId}`;
+                    const solicitudesActuales = JSON.parse(localStorage.getItem(keyUsuario) || '[]');
                     solicitudesActuales.unshift(nuevaSolicitud);
-                    localStorage.setItem('solicitudes', JSON.stringify(solicitudesActuales));
+                    localStorage.setItem(keyUsuario, JSON.stringify(solicitudesActuales));
                     
                     mostrarSolicitudes(solicitudesActuales);
                     mostrarToast('success', 'Solicitud de permiso creada exitosamente - Estado: PENDIENTE');
