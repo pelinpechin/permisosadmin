@@ -150,9 +150,13 @@ app.post('/api/crear-permiso', async (req, res) => {
 
         if (error) {
             console.error('❌ Error Supabase:', error);
-            return res.status(500).json({ 
+            console.error('❌ Error completo:', JSON.stringify(error, null, 2));
+            return res.json({ 
+                success: false,
                 error: 'Error guardando en base de datos',
-                details: error.message
+                details: error.message,
+                code: error.code,
+                hint: error.hint
             });
         }
 
