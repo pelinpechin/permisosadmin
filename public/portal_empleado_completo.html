@@ -2032,6 +2032,27 @@
         
         // =================== FUNCIONALIDAD DE SUPERVISIÓN ===================
         
+        // TEMPORAL: Función para verificar supervisores
+        window.verificarSupervisores = async function() {
+            try {
+                console.log('🔍 Verificando supervisores en el sistema...');
+                
+                // Llamar al endpoint que nos dé info de subordinados
+                const response = await fetch('/api/solicitudes-empleado/subordinados', {
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+                
+                const data = await response.json();
+                console.log('📊 Información de supervisión:', data);
+                console.log('👥 Subordinados:', data.subordinados);
+                
+            } catch (error) {
+                console.log('Error:', error);
+            }
+        };
+        
         // TEMPORAL: Función para arreglar permisos de Andrea
         window.arreglarAndrea = async function() {
             try {
@@ -2071,10 +2092,21 @@
             // Si el empleado tiene permisos de visualización o autorización, mostrar la sección de supervisión
             let esSupervisor = empleadoInfo && (empleadoInfo.visualizacion === true || empleadoInfo.autorizacion === true);
             
-            // TEMPORAL: Si es Andrea, forzar que sea supervisor
-            if (empleadoInfo && empleadoInfo.nombre && empleadoInfo.nombre.toLowerCase().includes('andrea')) {
-                console.log('🔧 FORZANDO supervisión para Andrea temporalmente');
-                esSupervisor = true;
+            // JERARQUÍA DE SUPERVISORES: Verificar si es supervisor según la jerarquía real
+            if (empleadoInfo && empleadoInfo.nombre) {
+                const nombre = empleadoInfo.nombre.toLowerCase();
+                
+                // Lista de supervisores conocidos
+                const supervisores = ['andrea', 'ronny', 'cisterna'];
+                
+                const esSuperisorJerarquia = supervisores.some(supervisor => 
+                    nombre.includes(supervisor)
+                );
+                
+                if (esSuperisorJerarquia) {
+                    console.log('🔧 Usuario identificado como supervisor:', empleadoInfo.nombre);
+                    esSupervisor = true;
+                }
             }
             
             console.log('- Es supervisor:', esSupervisor);

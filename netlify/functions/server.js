@@ -1047,26 +1047,46 @@ app.get('/api/solicitudes-empleado/subordinados', verifyToken, async (req, res) 
 
         console.log('👥 Subordinados encontrados:', subordinados ? subordinados.length : 0);
         
-        // TEMPORAL: Si es Andrea, incluir solo a Francisco Mancilla como subordinado
+        // CONFIGURACIÓN DE JERARQUÍA DE SUPERVISORES
         const supervisorNombre = req.user.nombre || '';
         let todosLosSubordinados = subordinados || [];
         
-        if (supervisorNombre.toLowerCase().includes('andrea')) {
-            console.log('🔧 CONFIGURANDO supervisión para Andrea - solo Francisco Mancilla');
-            
-            // Buscar específicamente a Francisco Mancilla
-            const { data: francisco, error: franciscoError } = await supabase
-                .from('empleados')
-                .select('id, nombre, rut, cargo')
-                .ilike('nombre', '%francisco%mancilla%')
-                .eq('activo', true)
-                .single();
+        // Mapeo específico de supervisores según la jerarquía real
+        const jerarquiaSupervisores = {
+            'andrea': ['francisco', 'mancilla'],
+            'ronny': ['miguel', 'rodriguez'],
+            'cisterna': ['miguel', 'rodriguez']
+        };
+        
+        console.log('🔍 Verificando jerarquía para:', supervisorNombre);
+        
+        // Buscar si el usuario actual es supervisor según la jerarquía
+        for (const [supervisor, subordinadosNombres] of Object.entries(jerarquiaSupervisores)) {
+            if (supervisorNombre.toLowerCase().includes(supervisor)) {
+                console.log(`🔧 CONFIGURANDO supervisión para ${supervisorNombre}`);
                 
-            if (!franciscoError && francisco) {
-                todosLosSubordinados = [francisco];
-                console.log(`👥 Andrea supervisa solo a: ${francisco.nombre} (ID: ${francisco.id})`);
-            } else {
-                console.log('⚠️ No se encontró Francisco Mancilla para Andrea');
+                // Buscar subordinados específicos
+                const subordinadosEncontrados = [];
+                
+                for (const nombreSubordinado of subordinadosNombres) {
+                    const { data: empleados, error: empleadosError } = await supabase
+                        .from('empleados')
+                        .select('id, nombre, rut, cargo')
+                        .ilike('nombre', `%${nombreSubordinado}%`)
+                        .eq('activo', true);
+                        
+                    if (!empleadosError && empleados && empleados.length > 0) {
+                        subordinadosEncontrados.push(...empleados);
+                    }
+                }
+                
+                if (subordinadosEncontrados.length > 0) {
+                    todosLosSubordinados = subordinadosEncontrados;
+                    console.log(`👥 ${supervisorNombre} supervisa a: ${subordinadosEncontrados.map(e => e.nombre).join(', ')}`);
+                } else {
+                    console.log(`⚠️ No se encontraron subordinados para ${supervisorNombre}`);
+                }
+                break;
             }
         }
         
