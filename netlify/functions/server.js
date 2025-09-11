@@ -1565,27 +1565,7 @@ app.get('/api/solicitudes-empleado/pendientes-aprobacion', verifyToken, async (r
     }
 });
 
-// Manejo de rutas no encontradas - con debug detallado
-app.use('*', (req, res) => {
-    console.log('❌ RUTA NO ENCONTRADA - DEBUG DETALLADO:');
-    console.log('- Method:', req.method);
-    console.log('- Path:', req.path);
-    console.log('- OriginalUrl:', req.originalUrl);
-    console.log('- Headers:', JSON.stringify(req.headers, null, 2));
-    console.log('- Body:', req.body);
-    console.log('- Query:', req.query);
-    
-    res.status(404).json({ 
-        success: false, 
-        message: 'Ruta no encontrada',
-        debug: {
-            path: req.path,
-            originalUrl: req.originalUrl,
-            method: req.method,
-            headers: req.headers
-        }
-    });
-});
+// CATCH-ALL REMOVED: Was blocking API routes
 
 // Manejo de errores globales
 app.use((err, req, res, next) => {
