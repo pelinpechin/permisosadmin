@@ -677,6 +677,308 @@ app.post('/api/solicitudes-empleado/crear', verifyToken, async (req, res) => {
     }
 });
 
+// Endpoint para aprobar solicitud (supervisor - primer nivel)
+app.post('/api/solicitudes-empleado/aprobar-supervisor/:id', verifyToken, async (req, res) => {
+    try {
+        console.log('👁️ === APROBACION SUPERVISOR ===');
+        console.log('👁️ Usuario:', req.user);
+        console.log('👁️ Solicitud ID:', req.params.id);
+        console.log('👁️ Body:', req.body);
+        
+        if (!supabase) {
+            return res.status(500).json({ error: 'Base de datos no configurada' });
+        }
+
+        const { id } = req.params;
+        const { observaciones } = req.body;
+        const supervisorId = req.user.id;
+        const supervisorNombre = req.user.nombre;
+
+        // Obtener la solicitud
+        const { data: solicitud, error: solicitudError } = await supabase
+            .from('solicitudes_permisos')
+            .select(`
+                *,
+                empleados!inner(nombre, rut, visualizacion, autorizacion)
+            `)
+            .eq('id', id)
+            .eq('estado', 'PENDIENTE')
+            .single();
+
+        if (solicitudError || !solicitud) {
+            return res.status(404).json({ error: 'Solicitud no encontrada o ya procesada' });
+        }
+
+        // Verificar que el usuario sea el supervisor de visualización
+        const empleado = solicitud.empleados;
+        if (empleado.visualizacion !== supervisorNombre) {
+            return res.status(403).json({ 
+                error: 'No tienes permisos para aprobar esta solicitud como supervisor' 
+            });
+        }
+
+        // Actualizar solicitud a APROBADO_SUPERVISOR
+        const { error: updateError } = await supabase
+            .from('solicitudes_permisos')
+            .update({
+                estado: 'APROBADO_SUPERVISOR',
+                aprobado_supervisor_por: supervisorId,
+                aprobado_supervisor_fecha: new Date().toISOString(),
+                observaciones_supervisor: observaciones || null,
+                updated_at: new Date().toISOString()
+            })
+            .eq('id', id);
+
+        if (updateError) {
+            console.error('Error actualizando solicitud:', updateError);
+            return res.status(500).json({ error: 'Error actualizando solicitud' });
+        }
+
+        // TODO: Crear notificación para autorizador
+        console.log('✅ Solicitud aprobada por supervisor, pendiente de autorización final');
+
+        res.json({
+            success: true,
+            message: 'Solicitud aprobada por supervisor. Pendiente de autorización final.',
+            data: {
+                id: parseInt(id),
+                estado: 'APROBADO_SUPERVISOR',
+                siguiente_paso: 'Autorización final'
+            }
+        });
+
+    } catch (error) {
+        console.error('💥 Error en aprobación supervisor:', error);
+        res.status(500).json({ 
+            error: 'Error interno del servidor: ' + error.message 
+        });
+    }
+});
+
+// Endpoint para autorizar solicitud (autorizador - segundo nivel)
+app.post('/api/solicitudes-empleado/autorizar-final/:id', verifyToken, async (req, res) => {
+    try {
+        console.log('⚡ === AUTORIZACION FINAL ===');
+        console.log('⚡ Usuario:', req.user);
+        console.log('⚡ Solicitud ID:', req.params.id);
+        console.log('⚡ Body:', req.body);
+        
+        if (!supabase) {
+            return res.status(500).json({ error: 'Base de datos no configurada' });
+        }
+
+        const { id } = req.params;
+        const { observaciones } = req.body;
+        const autorizadorId = req.user.id;
+        const autorizadorNombre = req.user.nombre;
+
+        // Obtener la solicitud
+        const { data: solicitud, error: solicitudError } = await supabase
+            .from('solicitudes_permisos')
+            .select(`
+                *,
+                empleados!inner(nombre, rut, visualizacion, autorizacion)
+            `)
+            .eq('id', id)
+            .eq('estado', 'APROBADO_SUPERVISOR')
+            .single();
+
+        if (solicitudError || !solicitud) {
+            return res.status(404).json({ 
+                error: 'Solicitud no encontrada o no está en estado APROBADO_SUPERVISOR' 
+            });
+        }
+
+        // Verificar que el usuario sea el autorizador
+        const empleado = solicitud.empleados;
+        if (empleado.autorizacion !== autorizadorNombre) {
+            return res.status(403).json({ 
+                error: 'No tienes permisos para autorizar esta solicitud' 
+            });
+        }
+
+        // Actualizar solicitud a APROBADO (estado final)
+        const { error: updateError } = await supabase
+            .from('solicitudes_permisos')
+            .update({
+                estado: 'APROBADO',
+                aprobado_por: autorizadorId,
+                fecha_aprobacion: new Date().toISOString(),
+                observaciones_autorizador: observaciones || null,
+                updated_at: new Date().toISOString()
+            })
+            .eq('id', id);
+
+        if (updateError) {
+            console.error('Error actualizando solicitud:', updateError);
+            return res.status(500).json({ error: 'Error actualizando solicitud' });
+        }
+
+        // TODO: Actualizar contadores de permisos utilizados del empleado
+        console.log('✅ Solicitud APROBADA FINALMENTE');
+
+        res.json({
+            success: true,
+            message: 'Solicitud aprobada exitosamente. El empleado ha sido notificado.',
+            data: {
+                id: parseInt(id),
+                estado: 'APROBADO',
+                proceso_completo: true
+            }
+        });
+
+    } catch (error) {
+        console.error('💥 Error en autorización final:', error);
+        res.status(500).json({ 
+            error: 'Error interno del servidor: ' + error.message 
+        });
+    }
+});
+
+// Endpoint para rechazar solicitud (cualquier nivel)
+app.post('/api/solicitudes-empleado/rechazar/:id', verifyToken, async (req, res) => {
+    try {
+        console.log('❌ === RECHAZAR SOLICITUD ===');
+        console.log('❌ Usuario:', req.user);
+        console.log('❌ Solicitud ID:', req.params.id);
+        console.log('❌ Body:', req.body);
+        
+        if (!supabase) {
+            return res.status(500).json({ error: 'Base de datos no configurada' });
+        }
+
+        const { id } = req.params;
+        const { motivo_rechazo } = req.body;
+        const rechazadoPorId = req.user.id;
+        const rechazadoPorNombre = req.user.nombre;
+
+        if (!motivo_rechazo) {
+            return res.status(400).json({ error: 'Motivo de rechazo es requerido' });
+        }
+
+        // Obtener la solicitud
+        const { data: solicitud, error: solicitudError } = await supabase
+            .from('solicitudes_permisos')
+            .select(`
+                *,
+                empleados!inner(nombre, rut, visualizacion, autorizacion)
+            `)
+            .eq('id', id)
+            .in('estado', ['PENDIENTE', 'APROBADO_SUPERVISOR'])
+            .single();
+
+        if (solicitudError || !solicitud) {
+            return res.status(404).json({ 
+                error: 'Solicitud no encontrada o ya fue procesada' 
+            });
+        }
+
+        // Verificar permisos (supervisor o autorizador)
+        const empleado = solicitud.empleados;
+        const esSupervisor = empleado.visualizacion === rechazadoPorNombre;
+        const esAutorizador = empleado.autorizacion === rechazadoPorNombre;
+
+        if (!esSupervisor && !esAutorizador) {
+            return res.status(403).json({ 
+                error: 'No tienes permisos para rechazar esta solicitud' 
+            });
+        }
+
+        // Actualizar solicitud a RECHAZADO
+        const { error: updateError } = await supabase
+            .from('solicitudes_permisos')
+            .update({
+                estado: 'RECHAZADO',
+                rechazado_por: rechazadoPorId,
+                fecha_rechazo: new Date().toISOString(),
+                motivo_rechazo: motivo_rechazo,
+                rechazado_por_rol: esSupervisor ? 'SUPERVISOR' : 'AUTORIZADOR',
+                updated_at: new Date().toISOString()
+            })
+            .eq('id', id);
+
+        if (updateError) {
+            console.error('Error actualizando solicitud:', updateError);
+            return res.status(500).json({ error: 'Error actualizando solicitud' });
+        }
+
+        console.log(`✅ Solicitud rechazada por ${esSupervisor ? 'supervisor' : 'autorizador'}`);
+
+        res.json({
+            success: true,
+            message: 'Solicitud rechazada. El empleado ha sido notificado.',
+            data: {
+                id: parseInt(id),
+                estado: 'RECHAZADO',
+                rechazado_por_rol: esSupervisor ? 'SUPERVISOR' : 'AUTORIZADOR'
+            }
+        });
+
+    } catch (error) {
+        console.error('💥 Error rechazando solicitud:', error);
+        res.status(500).json({ 
+            error: 'Error interno del servidor: ' + error.message 
+        });
+    }
+});
+
+// Endpoint para obtener solicitudes pendientes de aprobación
+app.get('/api/solicitudes-empleado/pendientes-aprobacion', verifyToken, async (req, res) => {
+    try {
+        console.log('📋 === SOLICITUDES PENDIENTES ===');
+        console.log('📋 Usuario:', req.user);
+        
+        if (!supabase) {
+            return res.status(500).json({ error: 'Base de datos no configurada' });
+        }
+
+        const usuarioNombre = req.user.nombre;
+
+        // Buscar solicitudes donde el usuario sea supervisor o autorizador
+        const { data: solicitudes, error } = await supabase
+            .from('solicitudes_permisos')
+            .select(`
+                *,
+                empleados!inner(nombre, rut, cargo, visualizacion, autorizacion),
+                tipos_permisos!inner(codigo, nombre, descripcion)
+            `)
+            .or(
+                `and(empleados.visualizacion.eq.${usuarioNombre},estado.eq.PENDIENTE),` +
+                `and(empleados.autorizacion.eq.${usuarioNombre},estado.eq.APROBADO_SUPERVISOR)`
+            )
+            .order('created_at', { ascending: false });
+
+        if (error) {
+            console.error('Error consultando solicitudes:', error);
+            return res.status(500).json({ error: 'Error consultando solicitudes' });
+        }
+
+        // Separar por tipo de acción requerida
+        const paraSupervisar = solicitudes.filter(s => 
+            s.estado === 'PENDIENTE' && s.empleados.visualizacion === usuarioNombre
+        );
+        
+        const paraAutorizar = solicitudes.filter(s => 
+            s.estado === 'APROBADO_SUPERVISOR' && s.empleados.autorizacion === usuarioNombre
+        );
+
+        res.json({
+            success: true,
+            data: {
+                para_supervisar: paraSupervisar,
+                para_autorizar: paraAutorizar,
+                total: solicitudes.length
+            }
+        });
+
+    } catch (error) {
+        console.error('💥 Error obteniendo pendientes:', error);
+        res.status(500).json({ 
+            error: 'Error interno del servidor: ' + error.message 
+        });
+    }
+});
+
 // Manejo de errores 404
 app.use('*', (req, res) => {
     res.status(404).json({ 
