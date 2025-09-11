@@ -19,6 +19,12 @@ app.use(cors());
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 
+// Middleware para debug de rutas
+app.use((req, res, next) => {
+    console.log('🌐 Petición recibida:', req.method, req.path, req.url);
+    next();
+});
+
 // Variables de entorno
 const JWT_SECRET = process.env.JWT_SECRET || 'clave_super_secreta_permisos_admin_chile_2025';
 const SUPABASE_URL = process.env.SUPABASE_URL;
@@ -1231,12 +1237,25 @@ app.get('/api/solicitudes-empleado/pendientes-aprobacion', verifyToken, async (r
     }
 });
 
-// Manejo de errores 404
+// Manejo de rutas no encontradas - con debug detallado
 app.use('*', (req, res) => {
+    console.log('❌ RUTA NO ENCONTRADA - DEBUG DETALLADO:');
+    console.log('- Method:', req.method);
+    console.log('- Path:', req.path);
+    console.log('- OriginalUrl:', req.originalUrl);
+    console.log('- Headers:', JSON.stringify(req.headers, null, 2));
+    console.log('- Body:', req.body);
+    console.log('- Query:', req.query);
+    
     res.status(404).json({ 
         success: false, 
         message: 'Ruta no encontrada',
-        path: req.originalUrl
+        debug: {
+            path: req.path,
+            originalUrl: req.originalUrl,
+            method: req.method,
+            headers: req.headers
+        }
     });
 });
 
