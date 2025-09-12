@@ -427,6 +427,87 @@ async function query(sql, params = []) {
             return transformedData;
         }
         
+        // Solicitudes recientes para dashboard (con LEFT JOIN tipos_permisos)
+        if (sql.includes('SELECT sp.*, tp.nombre as tipo_nombre') && sql.includes('LEFT JOIN tipos_permisos tp') && sql.includes('LIMIT 5')) {
+            console.log('🔍 Solicitudes recientes con LEFT JOIN detectado');
+            const empleadoId = params[0];
+            
+            const { data, error } = await supabase
+                .from('solicitudes_permisos')
+                .select(`
+                    *,
+                    tipos_permisos(nombre)
+                `)
+                .eq('empleado_id', empleadoId)
+                .order('created_at', { ascending: false })
+                .limit(5);
+            
+            if (error) {
+                console.error('Error en solicitudes recientes:', error);
+                throw error;
+            }
+            
+            // Transformar datos para compatibilidad con la estructura esperada
+            const transformedData = (data || []).map(row => ({
+                ...row,
+                tipo_nombre: row.tipos_permisos?.nombre || null
+            }));
+            
+            console.log('✅ Solicitudes recientes exitoso:', transformedData.length, 'resultados');
+            return transformedData;
+        }
+        
+        // Consulta compleja con JOIN para subordinados (múltiples tablas)
+        if (sql.includes('SELECT sp.*') && sql.includes('LEFT JOIN empleados e ON') && sql.includes('LEFT JOIN tipos_permisos tp ON')) {
+            console.log('🔍 Consulta compleja JOIN para subordinados detectada');
+            
+            // Extraer los IDs de empleados del IN clause
+            const inClauseMatch = sql.match(/sp\.empleado_id IN \(([^)]+)\)/);
+            if (!inClauseMatch) {
+                console.log('❌ No se pudo extraer la cláusula IN');
+                return [];
+            }
+            
+            // Los primeros parámetros son los IDs de empleados
+            const numIds = (inClauseMatch[1].match(/\?/g) || []).length;
+            const empleadoIds = params.slice(0, numIds);
+            const estados = params.slice(numIds);
+            
+            console.log('👥 Empleados IDs:', empleadoIds);
+            console.log('📋 Estados:', estados);
+            
+            const { data, error } = await supabase
+                .from('solicitudes_permisos')
+                .select(`
+                    *,
+                    empleados(nombre, rut, cargo),
+                    tipos_permisos(codigo, nombre, descripcion, color_hex)
+                `)
+                .in('empleado_id', empleadoIds)
+                .in('estado', estados)
+                .order('created_at', { ascending: false });
+            
+            if (error) {
+                console.error('❌ Error en consulta compleja:', error);
+                throw error;
+            }
+            
+            // Transformar para compatibilidad
+            const transformedData = (data || []).map(row => ({
+                ...row,
+                empleado_nombre: row.empleados?.nombre,
+                empleado_rut: row.empleados?.rut,
+                empleado_cargo: row.empleados?.cargo,
+                tipo_codigo: row.tipos_permisos?.codigo,
+                tipo_nombre: row.tipos_permisos?.nombre,
+                tipo_descripcion: row.tipos_permisos?.descripcion,
+                tipo_color: row.tipos_permisos?.color_hex
+            }));
+            
+            console.log('✅ Consulta compleja exitosa:', transformedData.length, 'resultados');
+            return transformedData;
+        }
+        
         // Solicitudes con joins
         if (sql.includes('SELECT * FROM solicitudes_permisos')) {
             const { data, error } = await supabase
@@ -775,6 +856,47 @@ async function run(sql, params = []) {
                     .from('solicitudes_permisos')
                     .update(updateData)
                     .eq('id', id)
+                    .select();
+                
+                if (error) throw error;
+                return { changes: data.length };
+            } else if (sql.includes('visto_por_supervisor') && sql.includes('fecha_visto_supervisor')) {
+                // Supervisor approval update
+                const id = params[0];
+                
+                const updateData = {
+                    estado: 'APROBADO_SUPERVISOR',
+                    visto_por_supervisor: true,
+                    fecha_visto_supervisor: new Date().toISOString(),
+                    updated_at: new Date().toISOString()
+                };
+                
+                const { data, error } = await supabase
+                    .from('solicitudes_permisos')
+                    .update(updateData)
+                    .eq('id', id)
+                    .eq('estado', 'PENDIENTE')
+                    .select();
+                
+                if (error) throw error;
+                return { changes: data.length };
+            } else if (sql.includes('aprobado_por') && sql.includes('fecha_aprobacion')) {
+                // Authority final approval
+                const supervisorId = params[0];
+                const id = params[1];
+                
+                const updateData = {
+                    estado: 'APROBADO',
+                    fecha_aprobacion: new Date().toISOString(),
+                    aprobado_por: supervisorId,
+                    updated_at: new Date().toISOString()
+                };
+                
+                const { data, error } = await supabase
+                    .from('solicitudes_permisos')
+                    .update(updateData)
+                    .eq('id', id)
+                    .in('estado', ['PENDIENTE', 'APROBADO_SUPERVISOR'])
                     .select();
                 
                 if (error) throw error;

@@ -1028,4 +1028,242 @@ async function validarLimitesPermisos(empleadoId, codigoPermiso, fechaPermiso) {
     }
 }
 
+/**
+ * GET /api/solicitudes-empleado/subordinados
+ * Obtener solicitudes de empleados subordinados (para supervisores)
+ */
+router.get('/subordinados', verificarTokenEmpleado, async (req, res) => {
+    try {
+        console.log('👁️ === SOLICITUDES DE SUBORDINADOS ===');
+        console.log('👁️ Supervisor:', req.empleado);
+        
+        const supervisorId = req.empleado.id;
+        const supervisorNombre = req.empleado.nombre || '';
+        
+        // Buscar empleados que tienen este usuario como supervisor (por ID o nombre)
+        const subordinados = await query(`
+            SELECT id, nombre, rut, cargo 
+            FROM empleados 
+            WHERE (supervisor = ? OR supervisor LIKE ?) 
+            AND activo = 1
+        `, [supervisorId, `%${supervisorNombre}%`]);
+        
+        console.log('👥 Subordinados encontrados por BD:', subordinados ? subordinados.length : 0);
+        
+        // CONFIGURACIÓN DE JERARQUÍA DE SUPERVISORES
+        let todosLosSubordinados = subordinados || [];
+        
+        // Mapeo específico de supervisores según la jerarquía real
+        const jerarquiaSupervisores = {
+            'andrea': ['francisco', 'mancilla'],
+            'ronny': ['miguel', 'rodriguez'], 
+            'cisterna': ['miguel', 'rodriguez'],
+            'patricio': [], // Patricio es autoridad máxima
+            'bravo': []     // Patricio Bravo es autoridad máxima
+        };
+        
+        console.log('🔍 Verificando jerarquía para:', supervisorNombre);
+        
+        // Buscar si el usuario actual es supervisor según la jerarquía
+        for (const [supervisor, subordinadosNombres] of Object.entries(jerarquiaSupervisores)) {
+            if (supervisorNombre.toLowerCase().includes(supervisor)) {
+                console.log(`🔧 CONFIGURANDO supervisión para ${supervisorNombre}`);
+                
+                // Buscar subordinados específicos por nombre
+                for (const nombreSubordinado of subordinadosNombres) {
+                    const empleadosEncontrados = await query(`
+                        SELECT id, nombre, rut, cargo 
+                        FROM empleados 
+                        WHERE nombre LIKE ? AND activo = 1
+                    `, [`%${nombreSubordinado}%`]);
+                    
+                    if (empleadosEncontrados && empleadosEncontrados.length > 0) {
+                        // Evitar duplicados
+                        empleadosEncontrados.forEach(emp => {
+                            if (!todosLosSubordinados.find(s => s.id === emp.id)) {
+                                todosLosSubordinados.push(emp);
+                            }
+                        });
+                    }
+                }
+                
+                if (todosLosSubordinados.length > 0) {
+                    console.log(`👥 ${supervisorNombre} supervisa a: ${todosLosSubordinados.map(e => e.nombre).join(', ')}`);
+                }
+                break;
+            }
+        }
+        
+        if (!todosLosSubordinados || todosLosSubordinados.length === 0) {
+            return res.json({
+                success: true,
+                data: [],
+                subordinados: [],
+                message: 'No tienes empleados bajo tu supervisión'
+            });
+        }
+        
+        // Obtener IDs de subordinados
+        const subordinadosIds = todosLosSubordinados.map(emp => emp.id);
+        
+        // Definir qué estados puede ver cada supervisor
+        const estadosPermitidos = ['PENDIENTE'];
+        const nombre = supervisorNombre.toLowerCase();
+        
+        if (nombre.includes('ronny') || nombre.includes('cisterna') || nombre.includes('patricio') || nombre.includes('bravo')) {
+            // Supervisores de nivel superior ven solicitudes ya aprobadas por supervisor directo
+            estadosPermitidos.push('APROBADO_SUPERVISOR');
+            console.log('🔝 Supervisor de nivel superior - ve APROBADO_SUPERVISOR y PENDIENTE');
+        } else {
+            console.log('👥 Supervisor directo - solo ve PENDIENTE');
+        }
+        
+        // Consultar solicitudes según nivel del supervisor
+        const solicitudesQuery = `
+            SELECT sp.*, 
+                   e.nombre as empleado_nombre, e.rut as empleado_rut, e.cargo as empleado_cargo,
+                   tp.codigo as tipo_codigo, tp.nombre as tipo_nombre, tp.descripcion as tipo_descripcion, tp.color_hex as tipo_color
+            FROM solicitudes_permisos sp
+            LEFT JOIN empleados e ON sp.empleado_id = e.id
+            LEFT JOIN tipos_permisos tp ON sp.tipo_permiso_id = tp.id
+            WHERE sp.empleado_id IN (${subordinadosIds.map(() => '?').join(',')})
+            AND sp.estado IN (${estadosPermitidos.map(() => '?').join(',')})
+            ORDER BY sp.created_at DESC
+        `;
+        
+        const solicitudes = await query(solicitudesQuery, [...subordinadosIds, ...estadosPermitidos]);
+        
+        console.log('📋 Solicitudes pendientes encontradas:', solicitudes ? solicitudes.length : 0);
+        
+        // Formatear respuesta
+        const solicitudesFormateadas = (solicitudes || []).map(solicitud => ({
+            id: solicitud.id,
+            empleado: {
+                id: solicitud.empleado_id,
+                nombre: solicitud.empleado_nombre,
+                rut: solicitud.empleado_rut,
+                cargo: solicitud.empleado_cargo
+            },
+            tipo_permiso: {
+                codigo: solicitud.tipo_codigo,
+                nombre: solicitud.tipo_nombre,
+                descripcion: solicitud.tipo_descripcion,
+                color_hex: solicitud.tipo_color
+            },
+            fecha_desde: solicitud.fecha_desde,
+            fecha_hasta: solicitud.fecha_hasta,
+            motivo: solicitud.motivo,
+            observaciones: solicitud.observaciones,
+            estado: solicitud.estado,
+            created_at: solicitud.created_at,
+            updated_at: solicitud.updated_at
+        }));
+        
+        res.json({
+            success: true,
+            data: solicitudesFormateadas,
+            subordinados: todosLosSubordinados,
+            message: `Encontradas ${solicitudesFormateadas.length} solicitudes de ${todosLosSubordinados.length} subordinados`
+        });
+        
+    } catch (error) {
+        console.error('💥 Error en subordinados:', error);
+        res.status(500).json({ 
+            success: false,
+            error: 'Error interno del servidor: ' + error.message
+        });
+    }
+});
+
+/**
+ * POST /api/solicitudes-empleado/aprobar-supervisor/:id
+ * Aprobar una solicitud como supervisor
+ */
+router.post('/aprobar-supervisor/:id', verificarTokenEmpleado, async (req, res) => {
+    try {
+        console.log('👁️ === APROBACION SUPERVISOR ===');
+        console.log('👁️ Usuario:', req.empleado);
+        
+        const solicitudId = req.params.id;
+        const supervisorNombre = (req.empleado.nombre || '').toLowerCase();
+        
+        // Determinar el tipo de supervisor
+        const esAutoridad = supervisorNombre.includes('ronny') || supervisorNombre.includes('cisterna') || 
+                           supervisorNombre.includes('patricio') || supervisorNombre.includes('bravo');
+        
+        console.log('🔍 Es autoridad máxima:', esAutoridad);
+        
+        if (esAutoridad) {
+            // Autoridad máxima: aprobación final
+            await run(`
+                UPDATE solicitudes_permisos 
+                SET estado = 'APROBADO', 
+                    fecha_aprobacion = CURRENT_TIMESTAMP,
+                    aprobado_por = ?,
+                    updated_at = CURRENT_TIMESTAMP
+                WHERE id = ? AND estado IN ('PENDIENTE', 'APROBADO_SUPERVISOR')
+            `, [req.empleado.id, solicitudId]);
+            
+            console.log('✅ Solicitud APROBADA FINALMENTE por autoridad');
+        } else {
+            // Supervisor directo: primera aprobación
+            await run(`
+                UPDATE solicitudes_permisos 
+                SET estado = 'APROBADO_SUPERVISOR',
+                    visto_por_supervisor = true,
+                    fecha_visto_supervisor = CURRENT_TIMESTAMP,
+                    updated_at = CURRENT_TIMESTAMP
+                WHERE id = ? AND estado = 'PENDIENTE'
+            `, [solicitudId]);
+            
+            console.log('✅ Solicitud APROBADA por supervisor directo');
+        }
+        
+        res.json({
+            success: true,
+            message: 'Solicitud aprobada exitosamente'
+        });
+        
+    } catch (error) {
+        console.error('💥 Error aprobando solicitud:', error);
+        res.status(500).json({ 
+            success: false,
+            error: 'Error interno del servidor: ' + error.message
+        });
+    }
+});
+
+/**
+ * POST /api/solicitudes-empleado/rechazar-supervisor/:id
+ * Rechazar una solicitud como supervisor
+ */
+router.post('/rechazar-supervisor/:id', verificarTokenEmpleado, async (req, res) => {
+    try {
+        const solicitudId = req.params.id;
+        const { motivo } = req.body;
+        
+        await run(`
+            UPDATE solicitudes_permisos 
+            SET estado = 'RECHAZADO',
+                fecha_aprobacion = CURRENT_TIMESTAMP,
+                aprobado_por = ?,
+                rechazado_motivo = ?,
+                updated_at = CURRENT_TIMESTAMP
+            WHERE id = ? AND estado IN ('PENDIENTE', 'APROBADO_SUPERVISOR')
+        `, [req.empleado.id, motivo || 'Sin motivo especificado', solicitudId]);
+        
+        res.json({
+            success: true,
+            message: 'Solicitud rechazada exitosamente'
+        });
+        
+    } catch (error) {
+        console.error('💥 Error rechazando solicitud:', error);
+        res.status(500).json({ 
+            success: false,
+            error: 'Error interno del servidor: ' + error.message
+        });
+    }
+});
+
 module.exports = router;
