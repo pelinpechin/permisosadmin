@@ -730,20 +730,92 @@ async function run(sql, params = []) {
         
         // INSERT INTO empleados
         if (sql.includes('INSERT INTO empleados')) {
+            console.log('📝 INSERT empleados - SQL:', sql);
+            console.log('📝 INSERT empleados - Params:', params);
+
+            // Parse column names from SQL
+            const columnsMatch = sql.match(/INSERT INTO empleados\s*\(([^)]+)\)/);
+            if (!columnsMatch) {
+                throw new Error('No se pudieron extraer las columnas del INSERT');
+            }
+
+            const columnNames = columnsMatch[1].split(',').map(col => col.trim());
+            console.log('📝 Columnas detectadas:', columnNames);
+
+            // Build object from column names and params
+            const empleadoData = {};
+            columnNames.forEach((col, index) => {
+                if (params[index] !== undefined && col !== 'created_at') {
+                    empleadoData[col] = params[index];
+                }
+            });
+
+            console.log('📝 Datos a insertar:', empleadoData);
+
             const { data, error } = await supabase
                 .from('empleados')
-                .insert(params[0])
+                .insert(empleadoData)
                 .select();
-            
-            if (error) throw error;
+
+            if (error) {
+                console.error('📝 Error en INSERT empleados:', error);
+                throw error;
+            }
+
+            console.log('✅ Empleado creado exitosamente, ID:', data[0]?.id);
             return { lastID: data[0]?.id, changes: 1 };
         }
         
+        // UPDATE empleados - full employee update (from admin)
+        if (sql.includes('UPDATE empleados SET') && sql.includes('numero = COALESCE')) {
+            console.log('📝 UPDATE empleados completo detectado');
+            console.log('📝 Parámetros:', params);
+
+            // Build update object from params
+            // Parameters order: numero, nombre, rut, fecha_nacimiento, cargo, negociacion_colectiva,
+            // visualizacion, autorizacion, uso_primer_semestre, uso_segundo_semestre,
+            // sin_goce, beneficio_licencia, licencias_total, atrasos, atrasos_justificados,
+            // no_marcaciones, activo, id (last one)
+            const updateData = {};
+            const fieldNames = [
+                'numero', 'nombre', 'rut', 'fecha_nacimiento', 'cargo', 'negociacion_colectiva',
+                'visualizacion', 'autorizacion', 'uso_primer_semestre', 'uso_segundo_semestre',
+                'sin_goce', 'beneficio_licencia', 'licencias_total', 'atrasos',
+                'atrasos_justificados', 'no_marcaciones', 'activo'
+            ];
+
+            fieldNames.forEach((field, index) => {
+                // Only include non-null values (COALESCE behavior)
+                if (params[index] !== null && params[index] !== undefined) {
+                    updateData[field] = params[index];
+                }
+            });
+
+            const employeeId = params[params.length - 1]; // Last parameter is the ID
+
+            console.log('📝 Datos a actualizar:', updateData);
+            console.log('📝 ID empleado:', employeeId);
+
+            const { data, error } = await supabase
+                .from('empleados')
+                .update(updateData)
+                .eq('id', employeeId)
+                .select();
+
+            if (error) {
+                console.error('📝 Error en UPDATE empleados:', error);
+                throw error;
+            }
+
+            console.log('✅ Empleado actualizado exitosamente');
+            return { changes: data.length };
+        }
+
         // UPDATE empleados - contraseñas, tokens, etc.
         if (sql.includes('UPDATE empleados')) {
             let updateData = {};
             let whereId = null;
-            
+
             console.log('Parseando UPDATE empleados:', sql);
             console.log('Parámetros:', params);
             
