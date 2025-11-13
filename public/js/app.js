@@ -383,12 +383,12 @@ function logout() {
         
         hideMainInterface();
         showLoginModal();
-        
+
         showAlert('Sesión cerrada exitosamente', 'success');
-        
-        // Forzar recarga después de un breve delay para asegurar limpieza completa
+
+        // Redirigir a la página principal después de un breve delay
         setTimeout(() => {
-            window.location.reload(true);
+            window.location.href = '/';
         }, 1000);
     }
 }

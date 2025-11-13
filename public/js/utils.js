@@ -42,17 +42,19 @@ function getAlertIcon(type) {
 // Formatear fechas
 function formatDate(dateString, options = {}) {
     if (!dateString) return '-';
-    
-    const defaultOptions = {
-        year: 'numeric',
-        month: '2-digit',
-        day: '2-digit',
-        ...options
-    };
-    
+
     try {
-        const date = new Date(dateString);
-        return date.toLocaleDateString('es-CL', defaultOptions);
+        // Extraer solo la parte de fecha (YYYY-MM-DD) sin conversión de zona horaria
+        const dateOnly = dateString.split('T')[0];
+        const [year, month, day] = dateOnly.split('-');
+
+        // Si no tiene formato válido, devolver el string original
+        if (!year || !month || !day) {
+            return dateString;
+        }
+
+        // Formatear manualmente como DD/MM/YYYY (formato chileno)
+        return `${day}/${month}/${year}`;
     } catch (error) {
         console.error('Error formateando fecha:', error);
         return dateString;
@@ -61,10 +63,25 @@ function formatDate(dateString, options = {}) {
 
 // Formatear fecha y hora
 function formatDateTime(dateString) {
-    return formatDate(dateString, {
-        hour: '2-digit',
-        minute: '2-digit'
-    });
+    if (!dateString) return '-';
+
+    try {
+        // Extraer fecha y hora del formato ISO
+        const [datePart, timePart] = dateString.split('T');
+        const [year, month, day] = datePart.split('-');
+
+        if (!timePart) {
+            // Si no hay hora, solo devolver la fecha
+            return `${day}/${month}/${year}`;
+        }
+
+        // Extraer hora y minuto
+        const [hour, minute] = timePart.split(':');
+        return `${day}/${month}/${year} ${hour}:${minute}`;
+    } catch (error) {
+        console.error('Error formateando fecha y hora:', error);
+        return formatDate(dateString);
+    }
 }
 
 // Formatear números como moneda

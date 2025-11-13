@@ -1,0 +1,454 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Validador de QR - Permisos Administrativos</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://unpkg.com/html5-qrcode"></script>
+    <style>
+        body {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px 0;
+        }
+
+        .container-validacion {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+
+        .card {
+            border: none;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+
+        .card-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-radius: 15px 15px 0 0 !important;
+            padding: 25px;
+        }
+
+        #reader {
+            border-radius: 10px;
+            overflow: hidden;
+        }
+
+        .resultado-box {
+            border-radius: 10px;
+            padding: 20px;
+            margin-top: 20px;
+        }
+
+        .resultado-valido {
+            background-color: #d4edda;
+            border: 2px solid #28a745;
+        }
+
+        .resultado-invalido {
+            background-color: #f8d7da;
+            border: 2px solid #dc3545;
+        }
+
+        .info-label {
+            font-weight: bold;
+            color: #495057;
+        }
+
+        .btn-scanner {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border: none;
+            padding: 12px 30px;
+            font-weight: bold;
+        }
+
+        .btn-scanner:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        .badge-lg {
+            font-size: 1rem;
+            padding: 8px 15px;
+        }
+
+        .manual-input {
+            background-color: #f8f9fa;
+            border-radius: 10px;
+            padding: 20px;
+            margin-top: 20px;
+        }
+
+        .scanner-status {
+            text-align: center;
+            padding: 15px;
+            background-color: #e3f2fd;
+            border-radius: 10px;
+            margin-bottom: 15px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container container-validacion">
+        <!-- Header -->
+        <div class="card mb-4">
+            <div class="card-header text-center">
+                <h2><i class="fas fa-qrcode me-2"></i>Validador de Códigos QR</h2>
+                <p class="mb-0">Sistema de Permisos Administrativos</p>
+            </div>
+        </div>
+
+        <!-- Scanner Section -->
+        <div class="card mb-4">
+            <div class="card-body">
+                <h5 class="card-title mb-3">
+                    <i class="fas fa-camera me-2"></i>Escanear Código QR
+                </h5>
+
+                <div class="scanner-status" id="scannerStatus" style="display: none;">
+                    <i class="fas fa-info-circle me-2"></i>
+                    <span id="statusText">Inicializando cámara...</span>
+                </div>
+
+                <div id="reader" style="display: none;"></div>
+
+                <div class="text-center mt-3">
+                    <button class="btn btn-primary btn-scanner" id="btnIniciarScanner" onclick="iniciarScanner()">
+                        <i class="fas fa-camera me-2"></i>Iniciar Escáner
+                    </button>
+                    <button class="btn btn-danger" id="btnDetenerScanner" onclick="detenerScanner()" style="display: none;">
+                        <i class="fas fa-stop me-2"></i>Detener Escáner
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Manual Input Section -->
+        <div class="card mb-4">
+            <div class="card-body">
+                <h5 class="card-title mb-3">
+                    <i class="fas fa-keyboard me-2"></i>Ingresar Código Manualmente
+                </h5>
+                <p class="text-muted">Si no puedes escanear, copia y pega el texto del código QR:</p>
+
+                <div class="input-group mb-3">
+                    <input type="text" class="form-control form-control-lg" id="inputManual"
+                           placeholder="Ej: EMPLEADO:12345678-9|Juan Pérez|SOLICITUD:123">
+                    <button class="btn btn-primary btn-scanner" type="button" onclick="validarManual()">
+                        <i class="fas fa-check me-2"></i>Validar
+                    </button>
+                </div>
+
+                <small class="text-muted">
+                    <i class="fas fa-lightbulb me-1"></i>
+                    El texto del QR comienza con EMPLEADO, SUPERVISOR, AUTORIZADOR o RECHAZO
+                </small>
+            </div>
+        </div>
+
+        <!-- Resultado Section -->
+        <div id="resultadoContainer" style="display: none;">
+            <div class="card">
+                <div class="card-body">
+                    <div id="resultadoContenido"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        let html5QrCode = null;
+        let scannerActivo = false;
+
+        function iniciarScanner() {
+            const readerElement = document.getElementById('reader');
+            const statusElement = document.getElementById('scannerStatus');
+            const btnIniciar = document.getElementById('btnIniciarScanner');
+            const btnDetener = document.getElementById('btnDetenerScanner');
+            const statusText = document.getElementById('statusText');
+
+            // Mostrar elementos
+            readerElement.style.display = 'block';
+            statusElement.style.display = 'block';
+            btnIniciar.style.display = 'none';
+            btnDetener.style.display = 'inline-block';
+
+            html5QrCode = new Html5Qrcode("reader");
+
+            statusText.textContent = 'Iniciando cámara...';
+
+            html5QrCode.start(
+                { facingMode: "environment" }, // Usar cámara trasera en móviles
+                {
+                    fps: 10,
+                    qrbox: { width: 250, height: 250 }
+                },
+                (decodedText, decodedResult) => {
+                    // QR escaneado exitosamente
+                    console.log(`QR escaneado: ${decodedText}`);
+                    statusText.textContent = 'QR detectado - Validando...';
+                    statusElement.classList.add('alert-success');
+
+                    // Validar el QR
+                    validarQR(decodedText);
+
+                    // Detener scanner después de escanear
+                    setTimeout(() => {
+                        detenerScanner();
+                    }, 1000);
+                },
+                (errorMessage) => {
+                    // Error o QR no detectado (esto es normal)
+                    // No hacer nada para evitar spam en consola
+                }
+            ).then(() => {
+                scannerActivo = true;
+                statusText.textContent = 'Cámara activa - Apunta al código QR';
+                statusElement.classList.add('alert-info');
+            }).catch((err) => {
+                console.error('Error al iniciar scanner:', err);
+                statusText.textContent = 'Error al acceder a la cámara. Verifica los permisos.';
+                statusElement.classList.add('alert-danger');
+                btnIniciar.style.display = 'inline-block';
+                btnDetener.style.display = 'none';
+            });
+        }
+
+        function detenerScanner() {
+            if (html5QrCode && scannerActivo) {
+                html5QrCode.stop().then(() => {
+                    scannerActivo = false;
+                    document.getElementById('reader').style.display = 'none';
+                    document.getElementById('scannerStatus').style.display = 'none';
+                    document.getElementById('btnIniciarScanner').style.display = 'inline-block';
+                    document.getElementById('btnDetenerScanner').style.display = 'none';
+                }).catch((err) => {
+                    console.error('Error al detener scanner:', err);
+                });
+            }
+        }
+
+        function validarManual() {
+            const input = document.getElementById('inputManual');
+            const qrData = input.value.trim();
+
+            if (!qrData) {
+                alert('Por favor ingresa el texto del código QR');
+                return;
+            }
+
+            validarQR(qrData);
+        }
+
+        async function validarQR(qrData) {
+            const resultadoContainer = document.getElementById('resultadoContainer');
+            const resultadoContenido = document.getElementById('resultadoContenido');
+
+            // Mostrar loading
+            resultadoContainer.style.display = 'block';
+            resultadoContenido.innerHTML = `
+                <div class="text-center">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Validando...</span>
+                    </div>
+                    <p class="mt-2">Validando código QR...</p>
+                </div>
+            `;
+
+            try {
+                const response = await fetch('/api/validar/qr', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ qrData: qrData })
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    mostrarResultado(data);
+                } else {
+                    throw new Error(data.error || 'Error desconocido');
+                }
+
+            } catch (error) {
+                console.error('Error validando QR:', error);
+                resultadoContenido.innerHTML = `
+                    <div class="alert alert-danger">
+                        <h5><i class="fas fa-exclamation-triangle me-2"></i>Error</h5>
+                        <p>No se pudo validar el código QR: ${error.message}</p>
+                    </div>
+                `;
+            }
+        }
+
+        function mostrarResultado(data) {
+            const resultadoContenido = document.getElementById('resultadoContenido');
+
+            if (data.valido) {
+                // QR Válido
+                let html = `
+                    <div class="resultado-box resultado-valido">
+                        <h4 class="text-success mb-3">
+                            <i class="fas fa-check-circle me-2"></i>${data.mensaje}
+                        </h4>
+                        <span class="badge bg-success badge-lg mb-3">${data.tipo}</span>
+
+                        <hr>
+
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <p class="info-label">Solicitud ID:</p>
+                                <p class="fs-5">#${data.datos.solicitudId}</p>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <p class="info-label">Estado:</p>
+                                <p><span class="badge ${getBadgeClass(data.datos.estado)}">${data.datos.estado}</span></p>
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <p class="info-label">Empleado:</p>
+                            <p class="fs-6">${data.datos.empleado.nombre}</p>
+                            <p class="text-muted">RUT: ${data.datos.empleado.rut}</p>
+                            ${data.datos.empleado.cargo ? `<p class="text-muted">Cargo: ${data.datos.empleado.cargo}</p>` : ''}
+                        </div>
+`;
+
+                // Información específica según el tipo
+                if (data.tipo === 'SUPERVISOR' && data.datos.supervisor) {
+                    html += `
+                        <div class="mb-3">
+                            <p class="info-label">Supervisor que aprobó:</p>
+                            <p>${data.datos.supervisor.nombre}</p>
+                            <p class="text-muted">RUT: ${data.datos.supervisor.rut}</p>
+                        </div>
+                    `;
+                } else if (data.tipo === 'AUTORIZADOR' && data.datos.autorizador) {
+                    html += `
+                        <div class="mb-3">
+                            <p class="info-label">Autorizador final:</p>
+                            <p>${data.datos.autorizador.nombre}</p>
+                            <p class="text-muted">RUT: ${data.datos.autorizador.rut}</p>
+                        </div>
+                    `;
+                } else if (data.tipo === 'RECHAZO' && data.datos.rechazadoPor) {
+                    html += `
+                        <div class="mb-3">
+                            <p class="info-label">Rechazado por:</p>
+                            <p>${data.datos.rechazadoPor.nombre}</p>
+                            <p class="text-muted">RUT: ${data.datos.rechazadoPor.rut}</p>
+                        </div>
+                        <div class="alert alert-warning">
+                            <p class="info-label">Motivo del rechazo:</p>
+                            <p>${data.datos.motivoRechazo}</p>
+                        </div>
+                    `;
+                }
+
+                // Información del permiso
+                html += `
+                        <div class="mb-3">
+                            <p class="info-label">Tipo de Permiso:</p>
+                            <p>${data.datos.permiso.tipo}</p>
+                        </div>
+                `;
+
+                if (data.datos.permiso.fechaDesde) {
+                    html += `
+                        <div class="mb-3">
+                            <p class="info-label">Fecha del Permiso:</p>
+                            <p>${formatearFecha(data.datos.permiso.fechaDesde)}${data.datos.permiso.fechaHasta && data.datos.permiso.fechaHasta !== data.datos.permiso.fechaDesde ? ' al ' + formatearFecha(data.datos.permiso.fechaHasta) : ''}</p>
+                        </div>
+                    `;
+                }
+
+                if (data.datos.permiso.motivo) {
+                    html += `
+                        <div class="mb-3">
+                            <p class="info-label">Motivo:</p>
+                            <p>${data.datos.permiso.motivo}</p>
+                        </div>
+                    `;
+                }
+
+                html += `
+                    </div>
+                `;
+
+                resultadoContenido.innerHTML = html;
+
+            } else {
+                // QR Inválido
+                resultadoContenido.innerHTML = `
+                    <div class="resultado-box resultado-invalido">
+                        <h4 class="text-danger mb-3">
+                            <i class="fas fa-times-circle me-2"></i>Código QR No Válido
+                        </h4>
+                        <span class="badge bg-danger badge-lg mb-3">${data.tipo || 'DESCONOCIDO'}</span>
+
+                        <hr>
+
+                        <div class="alert alert-warning">
+                            <p class="mb-0"><strong>Mensaje:</strong> ${data.mensaje}</p>
+                        </div>
+
+                        <p class="text-muted mt-3">
+                            <i class="fas fa-info-circle me-2"></i>
+                            Este código QR no corresponde a un permiso válido en el sistema o la información no coincide.
+                        </p>
+                    </div>
+                `;
+            }
+        }
+
+        function getBadgeClass(estado) {
+            const classes = {
+                'APROBADO': 'bg-success',
+                'RECHAZADO': 'bg-danger',
+                'PENDIENTE': 'bg-warning',
+                'APROBADO_SUPERVISOR': 'bg-info'
+            };
+            return classes[estado] || 'bg-secondary';
+        }
+
+        function formatearFecha(fecha) {
+            if (!fecha) return '';
+
+            try {
+                const dateOnly = fecha.split('T')[0];
+                const parts = dateOnly.split('-');
+
+                // Validar que tenga 3 partes
+                if (parts.length !== 3) {
+                    return '';
+                }
+
+                const [anio, mes, dia] = parts;
+
+                // Validar que todas las partes existan
+                if (!anio || !mes || !dia) {
+                    return '';
+                }
+
+                return `${dia}/${mes}/${anio}`;
+            } catch (error) {
+                console.error('Error formateando fecha:', error);
+                return '';
+            }
+        }
+
+        // Limpiar al cerrar la página
+        window.addEventListener('beforeunload', () => {
+            if (scannerActivo) {
+                detenerScanner();
+            }
+        });
+    </script>
+</body>
+</html>
