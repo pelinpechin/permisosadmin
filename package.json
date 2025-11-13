@@ -7,11 +7,7 @@
     "start": "node server.js",
     "dev": "nodemon server.js",
     "build": "npm install --production",
-    "test": "echo 'Tests not configured yet'",
-    "test-supabase": "node scripts/test_supabase.js",
-    "migrate-csv": "node scripts/migrate_csv_to_supabase.js",
-    "netlify-dev": "netlify dev",
-    "deploy": "netlify deploy --prod"
+    "test": "echo 'Tests not configured yet'"
   },
   "keywords": [
     "permisos",
@@ -48,7 +44,6 @@
     "xlsx": "^0.18.5"
   },
   "devDependencies": {
-    "netlify-cli": "^17.10.1",
     "nodemon": "^3.0.2"
   },
   "engines": {
