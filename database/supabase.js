@@ -356,6 +356,64 @@ async function query(sql, params = []) {
             return data || [];
         }
         
+        // Query del calendario equipo (con campos que no existen)
+        if (sql.includes('e.supervisor_id') && sql.includes('e.es_supervisor') && sql.includes('tp.afecta_sueldo')) {
+            console.log('📅 Query calendario equipo detectada');
+
+            // Construir query sin los campos que no existen
+            let dbQuery = supabase
+                .from('solicitudes_permisos')
+                .select(`
+                    *,
+                    empleados!inner(id, nombre, rut, cargo, supervisor),
+                    tipos_permisos!inner(nombre, codigo, afecta_sueldo)
+                `)
+                .eq('estado', 'APROBADO');
+
+            // Filtros de año/mes
+            if (params.length >= 2) {
+                const year = params[0];
+                const month = params[1];
+                if (year && month) {
+                    const startDate = `${year}-${month}-01`;
+                    const endDate = `${year}-${month}-31`;
+                    dbQuery = dbQuery.gte('fecha_desde', startDate).lte('fecha_desde', endDate);
+                }
+            }
+
+            // Filtro por empleado (si hay un tercer parámetro)
+            if (params.length === 3 && params[2]) {
+                dbQuery = dbQuery.eq('empleado_id', params[2]);
+            }
+
+            dbQuery = dbQuery.order('fecha_desde', { ascending: true });
+
+            const { data, error } = await dbQuery;
+
+            if (error) {
+                console.error('Error en query calendario:', error);
+                throw error;
+            }
+
+            // Transformar datos para compatibilidad
+            const transformedData = (data || []).map(item => ({
+                ...item,
+                empleado_nombre: item.empleados?.nombre,
+                empleado_rut: item.empleados?.rut,
+                empleado_cargo: item.empleados?.cargo,
+                supervisor_id: null, // No existe en schema
+                es_supervisor: false, // Campo calculado
+                tipo_nombre: item.tipos_permisos?.nombre,
+                tipo_codigo: item.tipos_permisos?.codigo,
+                afecta_sueldo: item.tipos_permisos?.afecta_sueldo,
+                medio_dia: 0, // No existe en schema
+                periodo_medio_dia: null // No existe en schema
+            }));
+
+            console.log(`✅ Query calendario exitosa: ${transformedData.length} permisos`);
+            return transformedData;
+        }
+
         // Query específica para es_supervisor (campo calculado)
         if (sql.includes('SELECT es_supervisor FROM empleados WHERE id = ?')) {
             const empleadoId = params[0];
@@ -826,7 +884,8 @@ async function run(sql, params = []) {
             // Build object from column names and params
             const empleadoData = {};
             columnNames.forEach((col, index) => {
-                if (params[index] !== undefined && col !== 'created_at') {
+                // Exclude auto-generated fields
+                if (params[index] !== undefined && col !== 'created_at' && col !== 'updated_at') {
                     empleadoData[col] = params[index];
                 }
             });
