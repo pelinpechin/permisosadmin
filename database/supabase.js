@@ -6,28 +6,32 @@ const supabaseUrl = process.env.SUPABASE_URL;
 const supabaseKey = process.env.SUPABASE_ANON_KEY;
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
-if (!supabaseUrl || !supabaseKey) {
-    throw new Error('❌ Variables de entorno de Supabase no configuradas');
-}
+// Solo inicializar si las credenciales están configuradas
+let supabase = null;
+let supabaseAdmin = null;
 
-// Cliente público (para operaciones normales)
-const supabase = createClient(supabaseUrl, supabaseKey, {
-    auth: {
-        autoRefreshToken: false,
-        persistSession: false
-    }
-});
-
-// Cliente con service role (para operaciones administrativas)
-const supabaseAdmin = supabaseServiceKey ? 
-    createClient(supabaseUrl, supabaseServiceKey, {
+if (supabaseUrl && supabaseKey) {
+    // Cliente público (para operaciones normales)
+    supabase = createClient(supabaseUrl, supabaseKey, {
         auth: {
             autoRefreshToken: false,
             persistSession: false
         }
-    }) : null;
+    });
 
-console.log('✅ Cliente Supabase inicializado correctamente');
+    // Cliente con service role (para operaciones administrativas)
+    supabaseAdmin = supabaseServiceKey ?
+        createClient(supabaseUrl, supabaseServiceKey, {
+            auth: {
+                autoRefreshToken: false,
+                persistSession: false
+            }
+        }) : null;
+
+    console.log('✅ Cliente Supabase inicializado correctamente');
+} else {
+    console.log('ℹ️ Supabase no configurado (usando DB alternativa)');
+}
 
 // Funciones de utilidad para mantener compatibilidad con el código existente
 
@@ -38,6 +42,10 @@ console.log('✅ Cliente Supabase inicializado correctamente');
  * @returns {Promise<Array>} Resultados de la consulta
  */
 async function query(sql, params = []) {
+    if (!supabase) {
+        throw new Error('Supabase no está configurado. Verifique DB_TYPE en variables de entorno.');
+    }
+
     try {
         console.log('🔍 Ejecutando query:', sql.substring(0, 100) + '...');
         
@@ -713,6 +721,10 @@ async function get(sql, params = []) {
  * @returns {Promise<Object>} Resultado de la operación
  */
 async function run(sql, params = []) {
+    if (!supabase) {
+        throw new Error('Supabase no está configurado. Verifique DB_TYPE en variables de entorno.');
+    }
+
     try {
         console.log('📝 Ejecutando operación:', sql.substring(0, 100) + '...');
         
