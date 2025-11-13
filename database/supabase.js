@@ -55,6 +55,42 @@ async function query(sql, params = []) {
             console.log('🔍 Parámetros DELETE:', params);
         }
         
+        // Validación de RUT duplicado (para UPDATE) - debe ir ANTES del handler general de RUT
+        if (sql.includes('SELECT id FROM empleados WHERE rut = ? AND id != ?')) {
+            const rutBuscado = params[0];
+            const idExcluir = params[1];
+            console.log('🔍 Validando RUT duplicado (excluye ID:', idExcluir, ')');
+
+            const { data, error } = await supabase
+                .from('empleados')
+                .select('id')
+                .eq('rut', rutBuscado)
+                .neq('id', idExcluir);
+
+            if (error) throw error;
+
+            console.log('✅ Resultado validación:', data && data.length > 0 ? 'Duplicado encontrado' : 'No hay duplicados');
+            return data || [];
+        }
+
+        // Validación de número duplicado (para UPDATE)
+        if (sql.includes('SELECT id FROM empleados WHERE numero = ? AND id != ?')) {
+            const numeroBuscado = params[0];
+            const idExcluir = params[1];
+            console.log('🔢 Validando número duplicado (excluye ID:', idExcluir, ')');
+
+            const { data, error } = await supabase
+                .from('empleados')
+                .select('id')
+                .eq('numero', numeroBuscado)
+                .neq('id', idExcluir);
+
+            if (error) throw error;
+
+            console.log('✅ Resultado validación número:', data && data.length > 0 ? 'Duplicado encontrado' : 'No hay duplicados');
+            return data || [];
+        }
+
         // Buscar empleado por RUT (directo o normalizado)
         if (sql.includes('FROM empleados WHERE rut = ?') || sql.includes('REPLACE(REPLACE(rut') && sql.includes('empleados')) {
             const rutBuscado = params[0];
@@ -959,6 +995,26 @@ async function run(sql, params = []) {
             return { lastID: data[0]?.id, changes: 1 };
         }
         
+        // UPDATE empleados - Desactivar empleado (soft delete)
+        if (sql.includes('UPDATE empleados SET activo = 0') || sql.includes('UPDATE empleados SET activo = ?') && params[0] === 0) {
+            const empleadoId = params[params.length - 1]; // El ID siempre es el último parámetro
+            console.log('🔒 Desactivando empleado ID:', empleadoId);
+
+            const { data, error } = await supabase
+                .from('empleados')
+                .update({ activo: false, updated_at: new Date().toISOString() })
+                .eq('id', empleadoId)
+                .select();
+
+            if (error) {
+                console.error('📝 Error desactivando empleado:', error);
+                throw error;
+            }
+
+            console.log('✅ Empleado desactivado exitosamente');
+            return { changes: data.length };
+        }
+
         // UPDATE empleados - full employee update (from admin)
         if (sql.includes('UPDATE empleados SET') && sql.includes('numero = COALESCE')) {
             console.log('📝 UPDATE empleados completo detectado');
