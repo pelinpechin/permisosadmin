@@ -1,6 +1,7 @@
 const express = require('express');
 const { query, get, run } = require('../database/db_config');
 const jwt = require('jsonwebtoken');
+const { sincronizarNombreEmpleado, verificarYCorregirInconsistencias } = require('../utils/sincronizarEmpleados');
 const router = express.Router();
 
 const JWT_SECRET = process.env.JWT_SECRET || 'clave_super_secreta_permisos_admin_chile_2025';
@@ -30,7 +31,13 @@ const verifyToken = (req, res, next) => {
 
 // Middleware para verificar que sea admin
 const verifyAdmin = (req, res, next) => {
-    if (req.user.type !== 'admin') {
+    // Verificar si el usuario es admin por tipo o por rol
+    const isAdmin = req.user.type === 'admin' ||
+                    req.user.rol === 'admin' ||
+                    req.user.rol === 'SUPER_ADMIN' ||
+                    req.user.rol === 'administrador';
+
+    if (!isAdmin) {
         return res.status(403).json({
             success: false,
             message: 'Acceso denegado. Se requieren permisos de administrador.'
@@ -45,12 +52,14 @@ router.get('/', verifyToken, verifyAdmin, async (req, res) => {
         const { page = 1, limit = 50, search = '', cargo = '', activo = '' } = req.query;
         
         let sql = `
-            SELECT 
-                id, numero, nombre, rut, fecha_nacimiento, cargo, 
-                negociacion_colectiva, uso_primer_semestre, uso_segundo_semestre,
-                sin_goce, beneficio_licencia, licencias_total, atrasos, 
+            SELECT
+                id, numero, nombre, rut, fecha_nacimiento, cargo,
+                visualizacion, autorizacion, negociacion_colectiva,
+                permisos_primer_semestre, permisos_segundo_semestre,
+                uso_primer_semestre, uso_segundo_semestre,
+                sin_goce, beneficio_licencia, licencias_total, atrasos,
                 atrasos_justificados, no_marcaciones, activo, created_at
-            FROM empleados 
+            FROM empleados
             WHERE 1=1
         `;
         const params = [];
@@ -295,44 +304,89 @@ router.post('/', verifyToken, verifyAdmin, async (req, res) => {
     try {
         const {
             numero, nombre, rut, fecha_nacimiento, cargo, negociacion_colectiva,
-            visualizacion, autorizacion
+            visualizacion, autorizacion,
+            // Campos alternativos del frontend
+            apellidoPaterno, apellidoMaterno, fechaIngreso,
+            negociacionColectiva
         } = req.body;
-        
+
+        // Construir nombre completo si viene separado
+        const nombreCompleto = apellidoPaterno
+            ? `${nombre} ${apellidoPaterno}${apellidoMaterno ? ' ' + apellidoMaterno : ''}`
+            : nombre;
+
+        // Generar número automáticamente si no viene
+        let numeroEmpleado = numero;
+        if (!numeroEmpleado) {
+            // Buscar el número máximo existente para evitar duplicados
+            const maxNumero = await query(`
+                SELECT CAST(numero AS INTEGER) as num
+                FROM empleados
+                WHERE numero GLOB '[0-9]*'
+                ORDER BY CAST(numero AS INTEGER) DESC
+                LIMIT 1
+            `);
+
+            const siguienteNumero = maxNumero.length > 0 && maxNumero[0].num ? maxNumero[0].num + 1 : 1;
+            numeroEmpleado = String(siguienteNumero).padStart(6, '0');
+        }
+
         // Validaciones básicas
-        if (!numero || !nombre || !rut || !cargo) {
+        if (!nombreCompleto || !rut || !cargo) {
             return res.status(400).json({
                 success: false,
-                message: 'Número, nombre, RUT y cargo son campos obligatorios'
+                message: 'Nombre, RUT y cargo son campos obligatorios'
             });
         }
-        
-        // Verificar que no exista el número o RUT
+
+        // Verificar que no exista el RUT
         const existeEmpleado = await get(
-            'SELECT id FROM empleados WHERE numero = ? OR rut = ?',
-            [numero, rut]
+            'SELECT id FROM empleados WHERE rut = ?',
+            [rut]
         );
-        
+
         if (existeEmpleado) {
             return res.status(400).json({
                 success: false,
-                message: 'Ya existe un empleado con ese número o RUT'
+                message: 'Ya existe un empleado con ese RUT'
             });
         }
-        
+
+        // Usar negociacionColectiva o negociacion_colectiva
+        const negCol = negociacionColectiva !== undefined ? negociacionColectiva : negociacion_colectiva;
+
+        // Generar email genérico basado en RUT si no viene
+        const rutLimpio = rut.replace(/\./g, '').replace(/-/g, '');
+        const emailGenerico = `${rutLimpio}@empresa.cl`;
+
+        // Generar contraseña por defecto hasheada
+        const bcrypt = require('bcryptjs');
+        const defaultPassword = 'usuario123';
+        const passwordHash = await bcrypt.hash(defaultPassword, 10);
+
         const result = await run(`
             INSERT INTO empleados (
                 numero, nombre, rut, fecha_nacimiento, cargo, negociacion_colectiva,
-                visualizacion, autorizacion, created_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+                visualizacion, autorizacion, email, password_hash, primer_login,
+                email_verificado, created_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, 0, CURRENT_TIMESTAMP)
         `, [
-            numero, nombre, rut, fecha_nacimiento, cargo, 
-            negociacion_colectiva ? 1 : 0, visualizacion, autorizacion
+            numeroEmpleado, nombreCompleto, rut, fecha_nacimiento || fechaIngreso, cargo,
+            negCol ? 1 : 0, visualizacion, autorizacion, emailGenerico, passwordHash
         ]);
-        
+
+        // Obtener el empleado recién creado para devolver todos los datos
+        const empleadoCreado = await get('SELECT * FROM empleados WHERE id = ?', [result.lastID]);
+
         res.status(201).json({
             success: true,
-            message: 'Empleado creado exitosamente',
-            data: { id: result.id }
+            message: 'Empleado creado exitosamente. Contraseña por defecto: usuario123',
+            data: {
+                id: result.lastID,
+                numero: numeroEmpleado,
+                defaultPassword: 'usuario123',
+                empleado: empleadoCreado
+            }
         });
         
     } catch (error) {
@@ -349,66 +403,151 @@ router.put('/:id', verifyToken, verifyAdmin, async (req, res) => {
     try {
         const { id } = req.params;
         const {
-            numero, nombre, rut, fecha_nacimiento, cargo, negociacion_colectiva,
-            visualizacion, autorizacion, uso_primer_semestre, uso_segundo_semestre,
-            sin_goce, beneficio_licencia, licencias_total, atrasos, 
-            atrasos_justificados, no_marcaciones, activo
+            numero,
+            rut,
+            nombre,
+            fecha_nacimiento,
+            cargo,
+            negociacion_colectiva,
+            visualizacion,
+            autorizacion,
+            uso_primer_semestre,
+            uso_segundo_semestre,
+            sin_goce,
+            beneficio_licencia,
+            licencias_total,
+            atrasos,
+            atrasos_justificados,
+            no_marcaciones,
+            activo
         } = req.body;
-        
-        // Verificar que el empleado existe
+
+        // Validación de campos requeridos (solo los obligatorios según schema)
+        if (!rut || !nombre || !cargo) {
+            return res.status(400).json({
+                success: false,
+                message: 'Faltan campos requeridos: rut, nombre y cargo son obligatorios'
+            });
+        }
+
+        // Verificar que el empleado existe y obtener nombre anterior
         const empleadoExistente = await get(
-            'SELECT id FROM empleados WHERE id = ?',
+            'SELECT id, numero, nombre FROM empleados WHERE id = ?',
             [id]
         );
-        
+
         if (!empleadoExistente) {
             return res.status(404).json({
                 success: false,
                 message: 'Empleado no encontrado'
             });
         }
-        
-        // Verificar que no exista otro empleado con el mismo número o RUT
+
+        const nombreAnterior = empleadoExistente.nombre;
+
+        // Verificar que no exista otro empleado con el mismo RUT
         const duplicado = await get(
-            'SELECT id FROM empleados WHERE (numero = ? OR rut = ?) AND id != ?',
-            [numero, rut, id]
+            'SELECT id FROM empleados WHERE rut = ? AND id != ?',
+            [rut, id]
         );
-        
+
         if (duplicado) {
             return res.status(400).json({
                 success: false,
-                message: 'Ya existe otro empleado con ese número o RUT'
+                message: 'Ya existe otro empleado con ese RUT'
             });
         }
-        
+
+        // Si se proporciona un número diferente, verificar que no esté duplicado
+        if (numero !== undefined && numero !== empleadoExistente.numero) {
+            const numeroDuplicado = await get(
+                'SELECT id FROM empleados WHERE numero = ? AND id != ?',
+                [numero, id]
+            );
+
+            if (numeroDuplicado) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'Ya existe otro empleado con ese número'
+                });
+            }
+        }
+
+        // Actualizar empleado con todos los campos del schema real
         await run(`
             UPDATE empleados SET
-                numero = ?, nombre = ?, rut = ?, fecha_nacimiento = ?, cargo = ?,
-                negociacion_colectiva = ?, visualizacion = ?, autorizacion = ?,
-                uso_primer_semestre = ?, uso_segundo_semestre = ?, sin_goce = ?,
-                beneficio_licencia = ?, licencias_total = ?, atrasos = ?,
-                atrasos_justificados = ?, no_marcaciones = ?, activo = ?,
+                numero = COALESCE(?, numero),
+                nombre = ?,
+                rut = ?,
+                fecha_nacimiento = COALESCE(?, fecha_nacimiento),
+                cargo = ?,
+                negociacion_colectiva = COALESCE(?, negociacion_colectiva),
+                visualizacion = COALESCE(?, visualizacion),
+                autorizacion = COALESCE(?, autorizacion),
+                uso_primer_semestre = COALESCE(?, uso_primer_semestre),
+                uso_segundo_semestre = COALESCE(?, uso_segundo_semestre),
+                sin_goce = COALESCE(?, sin_goce),
+                beneficio_licencia = COALESCE(?, beneficio_licencia),
+                licencias_total = COALESCE(?, licencias_total),
+                atrasos = COALESCE(?, atrasos),
+                atrasos_justificados = COALESCE(?, atrasos_justificados),
+                no_marcaciones = COALESCE(?, no_marcaciones),
+                activo = COALESCE(?, activo),
                 updated_at = CURRENT_TIMESTAMP
             WHERE id = ?
         `, [
-            numero, nombre, rut, fecha_nacimiento, cargo,
-            negociacion_colectiva ? 1 : 0, visualizacion, autorizacion,
-            uso_primer_semestre || 0, uso_segundo_semestre || 0, sin_goce || 0,
-            beneficio_licencia || 0, licencias_total || 0, atrasos || 0,
-            atrasos_justificados || 0, no_marcaciones || 0, activo !== false ? 1 : 0,
+            numero,
+            nombre,
+            rut,
+            fecha_nacimiento,
+            cargo,
+            negociacion_colectiva !== undefined ? (negociacion_colectiva ? 1 : 0) : null,
+            visualizacion,
+            autorizacion,
+            uso_primer_semestre,
+            uso_segundo_semestre,
+            sin_goce,
+            beneficio_licencia,
+            licencias_total,
+            atrasos,
+            atrasos_justificados,
+            no_marcaciones,
+            activo !== undefined ? (activo ? 1 : 0) : null,
             id
         ]);
-        
+
+        // Sincronizar referencias si el nombre cambió
+        if (nombre && nombre !== nombreAnterior) {
+            console.log(`\n🔄 Nombre cambió de "${nombreAnterior}" a "${nombre}"`);
+            console.log('   Sincronizando todas las referencias...');
+
+            try {
+                const resultadoSync = await sincronizarNombreEmpleado(id, nombreAnterior, nombre);
+                console.log(`   ✅ Sincronización completada: ${resultadoSync.total} referencias actualizadas`);
+            } catch (syncError) {
+                console.error('   ⚠️ Error en sincronización (continúa la actualización):', syncError.message);
+                // No fallar la actualización si falla la sincronización
+            }
+        }
+
+        // Obtener el empleado actualizado para devolver la información completa
+        const empleadoActualizado = await get(
+            'SELECT * FROM empleados WHERE id = ?',
+            [id]
+        );
+
         res.json({
             success: true,
-            message: 'Empleado actualizado exitosamente'
+            message: 'Empleado actualizado exitosamente',
+            empleado: empleadoActualizado
         });
-        
+
     } catch (error) {
         console.error('Error actualizando empleado:', error);
         res.status(500).json({
             success: false,
-            message: 'Error interno del servidor'
+            message: 'Error interno del servidor',
+            error: error.message
         });
     }
 });
@@ -417,29 +556,112 @@ router.put('/:id', verifyToken, verifyAdmin, async (req, res) => {
 router.delete('/:id', verifyToken, verifyAdmin, async (req, res) => {
     try {
         const { id } = req.params;
-        
+
         const result = await run(
             'UPDATE empleados SET activo = 0, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
             [id]
         );
-        
+
         if (result.changes === 0) {
             return res.status(404).json({
                 success: false,
                 message: 'Empleado no encontrado'
             });
         }
-        
+
         res.json({
             success: true,
             message: 'Empleado desactivado exitosamente'
         });
-        
+
     } catch (error) {
         console.error('Error desactivando empleado:', error);
         res.status(500).json({
             success: false,
             message: 'Error interno del servidor'
+        });
+    }
+});
+
+// Eliminar empleado permanentemente (hard delete)
+router.delete('/:id/permanent', verifyToken, verifyAdmin, async (req, res) => {
+    try {
+        const { id } = req.params;
+
+        console.log(`🗑️ Intentando eliminar permanentemente empleado ID: ${id}`);
+
+        // Verificar que el empleado exista y esté inactivo
+        const empleado = await get('SELECT id, nombre, activo FROM empleados WHERE id = ?', [id]);
+
+        if (!empleado) {
+            return res.status(404).json({
+                success: false,
+                message: 'Empleado no encontrado'
+            });
+        }
+
+        if (empleado.activo === 1) {
+            return res.status(400).json({
+                success: false,
+                message: 'Solo se pueden eliminar empleados inactivos. Primero debe desactivar el empleado.'
+            });
+        }
+
+        // VERIFICAR SI TIENE SOLICITUDES DE PERMISOS ASOCIADAS
+        const solicitudes = await get(
+            'SELECT COUNT(*) as total FROM solicitudes_permisos WHERE empleado_id = ?',
+            [id]
+        );
+
+        if (solicitudes && solicitudes.total > 0) {
+            console.log(`   ⚠️ El empleado "${empleado.nombre}" tiene ${solicitudes.total} solicitudes de permisos`);
+            return res.status(400).json({
+                success: false,
+                message: `No se puede eliminar el empleado "${empleado.nombre}" porque tiene ${solicitudes.total} solicitud(es) de permisos asociadas. La eliminación causaría pérdida de información histórica.`,
+                error: 'TIENE_SOLICITUDES',
+                detalles: {
+                    empleado: empleado.nombre,
+                    solicitudes: solicitudes.total
+                }
+            });
+        }
+
+        // Verificar si hay notificaciones asociadas
+        const notificaciones = await get(
+            'SELECT COUNT(*) as total FROM notificaciones WHERE empleado_id = ?',
+            [id]
+        );
+
+        if (notificaciones && notificaciones.total > 0) {
+            console.log(`   ℹ️ Eliminando ${notificaciones.total} notificaciones asociadas...`);
+            await run('DELETE FROM notificaciones WHERE empleado_id = ?', [id]);
+        }
+
+        // Si llegamos aquí, el empleado NO tiene solicitudes - es seguro eliminarlo
+        console.log(`   ✅ Empleado "${empleado.nombre}" no tiene solicitudes - procediendo con eliminación`);
+
+        const result = await run('DELETE FROM empleados WHERE id = ?', [id]);
+
+        if (result.changes === 0) {
+            return res.status(404).json({
+                success: false,
+                message: 'Empleado no encontrado'
+            });
+        }
+
+        console.log(`   ✅ Empleado "${empleado.nombre}" eliminado permanentemente`);
+
+        res.json({
+            success: true,
+            message: `Empleado "${empleado.nombre}" eliminado permanentemente`
+        });
+
+    } catch (error) {
+        console.error('❌ Error eliminando empleado permanentemente:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Error interno del servidor',
+            error: error.message
         });
     }
 });
@@ -508,5 +730,92 @@ router.get('/data/estadisticas', verifyToken, verifyAdmin, async (req, res) => {
     }
 });
 
+
+// Sincronizar referencias de todos los empleados (endpoint manual para corrección masiva)
+router.post('/sincronizar', verifyToken, verifyAdmin, async (req, res) => {
+    try {
+        console.log('\n🔄 Iniciando sincronización manual del sistema...');
+
+        const resultado = await verificarYCorregirInconsistencias();
+
+        res.json({
+            success: true,
+            message: 'Sincronización completada',
+            resultado: resultado
+        });
+
+    } catch (error) {
+        console.error('Error sincronizando sistema:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Error al sincronizar el sistema',
+            error: error.message
+        });
+    }
+});
+
+// Actualizar permisos de un empleado (endpoint específico para configuración)
+router.put('/:id/permisos', verifyToken, verifyAdmin, async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { permisos_primer_semestre, permisos_segundo_semestre } = req.body;
+
+        // Validar que se proporcionaron los campos necesarios
+        if (permisos_primer_semestre === undefined || permisos_segundo_semestre === undefined) {
+            return res.status(400).json({
+                success: false,
+                message: 'Se requieren permisos_primer_semestre y permisos_segundo_semestre'
+            });
+        }
+
+        // Validar que sean números válidos
+        const p1 = parseInt(permisos_primer_semestre);
+        const p2 = parseInt(permisos_segundo_semestre);
+
+        if (isNaN(p1) || isNaN(p2) || p1 < 0 || p2 < 0) {
+            return res.status(400).json({
+                success: false,
+                message: 'Los permisos deben ser números enteros no negativos'
+            });
+        }
+
+        // Verificar que el empleado existe
+        const empleado = await get('SELECT id FROM empleados WHERE id = ?', [id]);
+
+        if (!empleado) {
+            return res.status(404).json({
+                success: false,
+                message: 'Empleado no encontrado'
+            });
+        }
+
+        // Actualizar solo los permisos
+        await run(
+            `UPDATE empleados
+             SET permisos_primer_semestre = ?,
+                 permisos_segundo_semestre = ?
+             WHERE id = ?`,
+            [p1, p2, id]
+        );
+
+        res.json({
+            success: true,
+            message: 'Permisos actualizados correctamente',
+            data: {
+                id: parseInt(id),
+                permisos_primer_semestre: p1,
+                permisos_segundo_semestre: p2
+            }
+        });
+
+    } catch (error) {
+        console.error('Error actualizando permisos:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Error al actualizar los permisos',
+            error: error.message
+        });
+    }
+});
 
 module.exports = router;
