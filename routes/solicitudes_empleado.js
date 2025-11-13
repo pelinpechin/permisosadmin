@@ -1319,7 +1319,52 @@ router.post('/rechazar-supervisor/:id', verificarTokenEmpleado, async (req, res)
         
     } catch (error) {
         console.error('💥 Error rechazando solicitud:', error);
-        res.status(500).json({ 
+        res.status(500).json({
+            success: false,
+            error: 'Error interno del servidor: ' + error.message
+        });
+    }
+});
+
+/**
+ * PUT /api/solicitudes-empleado/admin/anular/:id
+ * Anular una solicitud de permiso (solo admins)
+ */
+router.put('/admin/anular/:id', async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { motivo } = req.body;
+
+        console.log('🔥 Admin anulando solicitud:', id);
+
+        // Verificar que la solicitud existe
+        const solicitud = await query('SELECT * FROM solicitudes_permisos WHERE id = ?', [id]);
+
+        if (!solicitud || solicitud.length === 0) {
+            return res.status(404).json({
+                success: false,
+                message: 'Solicitud no encontrada'
+            });
+        }
+
+        // Anular la solicitud
+        await run(`
+            UPDATE solicitudes_permisos SET
+                estado = 'CANCELADO',
+                fecha_anulacion = CURRENT_TIMESTAMP,
+                rechazado_motivo = ?,
+                updated_at = CURRENT_TIMESTAMP
+            WHERE id = ?
+        `, [motivo || 'Anulado por administrador', id]);
+
+        res.json({
+            success: true,
+            message: 'Solicitud anulada exitosamente'
+        });
+
+    } catch (error) {
+        console.error('💥 Error anulando solicitud:', error);
+        res.status(500).json({
             success: false,
             error: 'Error interno del servidor: ' + error.message
         });
