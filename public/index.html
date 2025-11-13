@@ -4374,7 +4374,7 @@
             try {
                 showLoading(true);
 
-                const response = await fetch(`/api/solicitudes-empleado/admin/anular/${permisoId}`, {
+                const response = await fetch(`/api/admin/anular/${permisoId}`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
