@@ -355,12 +355,11 @@ router.get('/:id', verifyToken, async (req, res) => {
         const { id } = req.params;
         
         let sql = `
-            SELECT 
+            SELECT
                 sp.*,
                 e.nombre as empleado_nombre,
                 e.rut as empleado_rut,
                 e.cargo as empleado_cargo,
-                e.email as empleado_email,
                 tp.nombre as tipo_permiso_nombre,
                 tp.codigo as tipo_permiso_codigo,
                 tp.descripcion as tipo_permiso_descripcion,
@@ -435,7 +434,7 @@ router.put('/:id/estado', verifyToken, async (req, res) => {
         
         // Verificar que la solicitud existe y está pendiente
         const solicitud = await get(`
-            SELECT sp.*, e.nombre as empleado_nombre, e.email as empleado_email,
+            SELECT sp.*, e.nombre as empleado_nombre,
                    tp.nombre as tipo_permiso_nombre
             FROM solicitudes_permisos sp
             LEFT JOIN empleados e ON sp.empleado_id = e.id

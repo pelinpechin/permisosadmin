@@ -1,6 +1,6 @@
 const express = require('express');
 const jwt = require('jsonwebtoken');
-const { query, run } = require('../database/supabase');
+const { query, run } = require('../database/db_config');
 
 const router = express.Router();
 
