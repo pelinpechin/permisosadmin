@@ -356,25 +356,55 @@ async function query(sql, params = []) {
             return data || [];
         }
         
+        // Query específica para es_supervisor (campo calculado)
+        if (sql.includes('SELECT es_supervisor FROM empleados WHERE id = ?')) {
+            const empleadoId = params[0];
+
+            // Obtener empleado y verificar si otros empleados lo tienen como supervisor
+            const { data: empleado, error: errorEmpleado } = await supabase
+                .from('empleados')
+                .select('nombre, visualizacion, autorizacion')
+                .eq('id', empleadoId)
+                .eq('activo', true)
+                .single();
+
+            if (errorEmpleado && errorEmpleado.code !== 'PGRST116') throw errorEmpleado;
+            if (!empleado) return [];
+
+            // Buscar si hay empleados que tienen a este como supervisor
+            const { data: subordinados, error: errorSub } = await supabase
+                .from('empleados')
+                .select('id')
+                .or(`supervisor.eq.${empleado.nombre},visualizacion.eq.${empleado.nombre},autorizacion.eq.${empleado.nombre}`)
+                .eq('activo', true);
+
+            if (errorSub) throw errorSub;
+
+            // Es supervisor si tiene subordinados
+            return [{
+                es_supervisor: subordinados && subordinados.length > 0
+            }];
+        }
+
         // Todas las consultas de empleados
         if (sql.includes('SELECT') && sql.includes('FROM empleados')) {
-            let query = supabase.from('empleados').select('*');
-            
+            let dbQuery = supabase.from('empleados').select('*');
+
             // Si no tiene WHERE específico, agregar activo = true
             if (!sql.includes('WHERE')) {
-                query = query.eq('activo', true);
+                dbQuery = dbQuery.eq('activo', true);
             }
-            
+
             // Si tiene LIMIT
             if (sql.includes('LIMIT')) {
                 const limitMatch = sql.match(/LIMIT (\d+)/);
                 if (limitMatch) {
                     const limit = parseInt(limitMatch[1]);
-                    query = query.limit(limit);
+                    dbQuery = dbQuery.limit(limit);
                 }
             }
-            
-            const { data, error } = await query;
+
+            const { data, error } = await dbQuery;
             if (error) throw error;
             return data;
         }
@@ -558,6 +588,57 @@ async function query(sql, params = []) {
             }
         }
         
+        // Query para /admin/todas con LEFT JOIN (solicitudes_permisos con joins)
+        if (sql.includes('SELECT sp.*') && sql.includes('LEFT JOIN empleados e ON sp.empleado_id = e.id') &&
+            sql.includes('LEFT JOIN tipos_permisos tp ON sp.tipo_permiso_id = tp.id') &&
+            sql.includes('LEFT JOIN usuarios_admin ua ON sp.aprobado_por = ua.id')) {
+
+            console.log('📊 Query compleja /admin/todas detectada');
+
+            // Construir query con filtros
+            let dbQuery = supabase
+                .from('solicitudes_permisos')
+                .select(`
+                    *,
+                    empleados!inner(nombre, rut, cargo),
+                    tipos_permisos!inner(codigo, nombre, descripcion, color_hex),
+                    usuarios_admin(nombre)
+                `)
+                .order('created_at', { ascending: false });
+
+            // Aplicar filtros según parámetros
+            // El SQL puede incluir WHERE con diferentes condiciones
+            if (sql.includes('sp.estado = ?')) {
+                const estadoParam = params.find(p => typeof p === 'string' && ['PENDIENTE', 'APROBADO', 'RECHAZADO', 'CANCELADO'].includes(p));
+                if (estadoParam) {
+                    dbQuery = dbQuery.eq('estado', estadoParam);
+                }
+            }
+
+            const { data, error } = await dbQuery;
+
+            if (error) {
+                console.error('Error en query /admin/todas:', error);
+                throw error;
+            }
+
+            // Transformar datos para compatibilidad
+            const transformedData = (data || []).map(item => ({
+                ...item,
+                empleado_nombre: item.empleados?.nombre,
+                empleado_rut: item.empleados?.rut,
+                empleado_cargo: item.empleados?.cargo,
+                tipo_codigo: item.tipos_permisos?.codigo,
+                tipo_nombre: item.tipos_permisos?.nombre,
+                tipo_descripcion: item.tipos_permisos?.descripcion,
+                tipo_color: item.tipos_permisos?.color_hex,
+                aprobado_por_nombre: item.usuarios_admin?.nombre
+            }));
+
+            console.log(`✅ Query /admin/todas exitosa: ${transformedData.length} resultados`);
+            return transformedData;
+        }
+
         // Consultas complejas con JOIN para solicitudes_permisos
         if (sql.includes('JOIN empleados e ON') && sql.includes('JOIN tipos_permisos')) {
             if (sql.includes('WHERE sp.id = ?')) {
@@ -573,9 +654,9 @@ async function query(sql, params = []) {
                     `)
                     .eq('id', solicitudId)
                     .single();
-                    
+
                 if (error && error.code !== 'PGRST116') throw error;
-                
+
                 // Transformar para compatibilidad
                 if (data) {
                     const transformed = {
@@ -594,7 +675,7 @@ async function query(sql, params = []) {
                 }
                 return [];
             }
-            
+
             // Solicitudes con filtros
             const { data, error } = await supabase
                 .from('solicitudes_permisos')
@@ -604,9 +685,9 @@ async function query(sql, params = []) {
                     tipos_permisos(codigo, nombre, color_hex, descripcion)
                 `)
                 .order('created_at', { ascending: false });
-                
+
             if (error) throw error;
-            
+
             return data.map(item => ({
                 ...item,
                 empleado_nombre: item.empleados?.nombre,
