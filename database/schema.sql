@@ -9,6 +9,8 @@ CREATE TABLE IF NOT EXISTS empleados (
     negociacion_colectiva BOOLEAN DEFAULT 0,
     visualizacion VARCHAR(255),
     autorizacion VARCHAR(255),
+    permisos_primer_semestre INTEGER DEFAULT 3,
+    permisos_segundo_semestre INTEGER DEFAULT 3,
     uso_primer_semestre DECIMAL(3,1) DEFAULT 0,
     uso_segundo_semestre DECIMAL(3,1) DEFAULT 0,
     sin_goce INTEGER DEFAULT 0,
