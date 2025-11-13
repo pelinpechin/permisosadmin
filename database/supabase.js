@@ -444,6 +444,24 @@ async function query(sql, params = []) {
             }];
         }
 
+        // Query para obtener el siguiente número de empleado (para auto-generación)
+        if (sql.includes('CAST(numero AS INTEGER)') && sql.includes('GLOB')) {
+            console.log('🔢 Query de número de empleado detectada');
+
+            // En PostgreSQL, obtener el máximo número donde numero es numérico
+            const { data, error } = await supabase
+                .from('empleados')
+                .select('numero')
+                .order('numero', { ascending: false })
+                .limit(1);
+
+            if (error) throw error;
+
+            // Convertir a número y retornar en formato esperado
+            const maxNum = data && data.length > 0 ? parseInt(data[0].numero) : 0;
+            return [{ num: maxNum }];
+        }
+
         // Todas las consultas de empleados
         if (sql.includes('SELECT') && sql.includes('FROM empleados')) {
             let dbQuery = supabase.from('empleados').select('*');
