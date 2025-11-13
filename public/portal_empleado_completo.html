@@ -30,6 +30,18 @@
             padding: 20px;
             margin-bottom: 30px;
         }
+
+        .header-logo {
+            max-width: 60px;
+            height: auto;
+            margin-right: 15px;
+        }
+
+        .header-institution {
+            font-size: 0.9rem;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
         
         .data-card {
             border-radius: 15px;
@@ -158,6 +170,133 @@
             justify-content: center;
             align-items: center;
             padding: 40px;
+        }
+
+        /* Estilos para notificaciones */
+        .notification-bell {
+            position: relative;
+            cursor: pointer;
+        }
+
+        .notification-badge {
+            position: absolute;
+            top: -5px;
+            right: -5px;
+            background: #dc3545;
+            color: white;
+            border-radius: 50%;
+            padding: 2px 6px;
+            font-size: 10px;
+            font-weight: bold;
+            min-width: 18px;
+            text-align: center;
+        }
+
+        .notification-dropdown {
+            position: absolute;
+            top: 100%;
+            right: 0;
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 8px 25px rgba(0,0,0,0.2);
+            width: 400px;
+            max-height: 500px;
+            overflow-y: auto;
+            z-index: 1000;
+            margin-top: 10px;
+            display: none;
+        }
+
+        .notification-dropdown.show {
+            display: block;
+        }
+
+        .notification-header {
+            padding: 15px 20px;
+            border-bottom: 1px solid #e9ecef;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            color: white;
+            border-radius: 10px 10px 0 0;
+        }
+
+        .notification-item {
+            padding: 15px 20px;
+            border-bottom: 1px solid #e9ecef;
+            cursor: pointer;
+            transition: background 0.2s ease;
+        }
+
+        .notification-item:hover {
+            background: #f8f9fa;
+        }
+
+        .notification-item.unread {
+            background: #e7f3ff;
+        }
+
+        .notification-item.unread:hover {
+            background: #d1e7fd;
+        }
+
+        .notification-icon {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            margin-right: 15px;
+        }
+
+        .notification-icon.info {
+            background: #cfe2ff;
+            color: #084298;
+        }
+
+        .notification-icon.success {
+            background: #d1e7dd;
+            color: #0f5132;
+        }
+
+        .notification-icon.warning {
+            background: #fff3cd;
+            color: #664d03;
+        }
+
+        .notification-icon.danger {
+            background: #f8d7da;
+            color: #842029;
+        }
+
+        .notification-content {
+            flex: 1;
+        }
+
+        .notification-title {
+            font-weight: 600;
+            margin-bottom: 5px;
+            color: #212529;
+        }
+
+        .notification-message {
+            font-size: 13px;
+            color: #6c757d;
+            margin-bottom: 5px;
+        }
+
+        .notification-time {
+            font-size: 11px;
+            color: #adb5bd;
+        }
+
+        .notification-empty {
+            padding: 40px 20px;
+            text-align: center;
+            color: #6c757d;
         }
     </style>
 </head>
@@ -480,13 +619,40 @@
                 <!-- Header -->
                 <div class="header-card">
                     <div class="d-flex justify-content-between align-items-center">
-                        <div>
-                            <h2><i class="fas fa-user me-2"></i><span id="nombreEmpleado">Cargando...</span></h2>
-                            <p class="mb-0">Portal de Empleado - Sistema de Permisos</p>
+                        <div class="d-flex align-items-center">
+                            <img src="logo.jpg" alt="Logo Liceo Experimental" class="header-logo">
+                            <div>
+                                <div class="header-institution">LICEO EXPERIMENTAL</div>
+                                <h2 class="mb-0"><i class="fas fa-user me-2"></i><span id="nombreEmpleado">Cargando...</span></h2>
+                                <p class="mb-0">Portal de Empleado - Sistema de Permisos</p>
+                            </div>
                         </div>
-                        <div>
+                        <div class="d-flex align-items-center">
                             <button id="btnAdmin" class="btn btn-warning me-2" onclick="window.open('admin_dashboard.html', '_blank')" style="display: none;">
                                 <i class="fas fa-user-cog"></i> Admin
+                            </button>
+
+                            <!-- Campana de Notificaciones -->
+                            <div class="position-relative me-2">
+                                <button class="btn btn-outline-light notification-bell" onclick="toggleNotifications()" id="notificationBtn">
+                                    <i class="fas fa-bell"></i>
+                                    <span class="notification-badge" id="notificationBadge" style="display: none;">0</span>
+                                </button>
+
+                                <!-- Dropdown de Notificaciones -->
+                                <div class="notification-dropdown" id="notificationDropdown">
+                                    <div class="notification-header">
+                                        <h6 class="mb-0">Notificaciones</h6>
+                                        <button class="btn btn-sm btn-light" onclick="marcarTodasLeidas()">
+                                            <i class="fas fa-check-double"></i> Marcar todas leídas
+                                        </button>
+                                    </div>
+                                    <div id="notificationList"></div>
+                                </div>
+                            </div>
+
+                            <button class="btn btn-outline-light me-2" onclick="mostrarModalCambiarPassword()">
+                                <i class="fas fa-key"></i> Cambiar Contraseña
                             </button>
                             <button class="btn btn-outline-light" onclick="cerrarSesion()">
                                 <i class="fas fa-sign-out-alt"></i> Cerrar Sesión
@@ -735,16 +901,163 @@
             </div>
         </div>
     </div>
-    
+
+    <!-- Modal Cambiar Contraseña -->
+    <div class="modal fade" id="modalCambiarPassword" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="fas fa-key me-2"></i>Cambiar Contraseña</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <form id="formCambiarPassword" onsubmit="cambiarPassword(event)">
+                    <div class="modal-body">
+                        <div class="alert alert-info">
+                            <i class="fas fa-info-circle me-2"></i>
+                            La contraseña debe tener al menos 6 caracteres.
+                        </div>
+
+                        <div class="edit-field">
+                            <label for="passwordActual" class="form-label">Contraseña Actual</label>
+                            <input type="password" class="form-control" id="passwordActual" required minlength="6">
+                        </div>
+
+                        <div class="edit-field">
+                            <label for="passwordNuevo" class="form-label">Nueva Contraseña</label>
+                            <input type="password" class="form-control" id="passwordNuevo" required minlength="6">
+                        </div>
+
+                        <div class="edit-field">
+                            <label for="passwordConfirmar" class="form-label">Confirmar Nueva Contraseña</label>
+                            <input type="password" class="form-control" id="passwordConfirmar" required minlength="6">
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-save me-2"></i>Cambiar Contraseña
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script>
+        // VERSION MARKER para verificar que el código actualizado está cargado
+        console.log('🔄 PORTAL EMPLEADO - Versión actualizada cargada: ' + new Date().toISOString());
+        console.log('✅ Funciones de formateo DD/MM/AAAA activas');
+
         // Variables globales
         let empleadoInfo = null;
         let tiposPermisosData = [];
         let token = localStorage.getItem('auth_token');
         let userData = JSON.parse(localStorage.getItem('user_data') || '{}');
         let empleadoTemporal = null;
-        
+
+        // === FUNCIONES DE FORMATEO DE FECHAS ===
+
+        /**
+         * Formatea una fecha al formato DD/MM/YYYY (sin conversión de zona horaria)
+         * @param {Date|string} fecha - Fecha a formatear
+         * @returns {string} - Fecha formateada
+         */
+        function formatearFecha(fecha) {
+            console.log('[DEBUG formatearFecha] Input:', fecha, 'Type:', typeof fecha);
+
+            if (!fecha) {
+                console.log('[DEBUG formatearFecha] Empty input, returning empty string');
+                return '';
+            }
+
+            try {
+                // Convertir a string
+                const fechaStr = String(fecha).trim();
+                console.log('[DEBUG formatearFecha] fechaStr:', fechaStr);
+
+                // Si ya está formateada DD/MM/AAAA, devolverla
+                if (fechaStr.match(/^\d{2}\/\d{2}\/\d{4}$/)) {
+                    console.log('[DEBUG formatearFecha] Already formatted, returning:', fechaStr);
+                    return fechaStr;
+                }
+
+                // Extraer solo la parte de fecha si tiene hora
+                let dateOnly = fechaStr;
+                if (fechaStr.includes('T')) {
+                    dateOnly = fechaStr.split('T')[0];
+                    console.log('[DEBUG formatearFecha] Extracted from ISO format:', dateOnly);
+                } else if (fechaStr.includes(' ')) {
+                    dateOnly = fechaStr.split(' ')[0];
+                    console.log('[DEBUG formatearFecha] Extracted from SQL format:', dateOnly);
+                }
+
+                // Parsear YYYY-MM-DD
+                const parts = dateOnly.split('-');
+                console.log('[DEBUG formatearFecha] Parts after split:', parts);
+
+                if (parts.length === 3) {
+                    const [anio, mes, dia] = parts;
+                    console.log('[DEBUG formatearFecha] Parsed parts - Year:', anio, 'Month:', mes, 'Day:', dia);
+
+                    if (anio && mes && dia) {
+                        const result = `${dia.padStart(2, '0')}/${mes.padStart(2, '0')}/${anio}`;
+                        console.log('[DEBUG formatearFecha] Formatted result:', result);
+                        return result;
+                    }
+                }
+
+                console.log('[DEBUG formatearFecha] Failed to parse, returning empty string');
+                return '';
+            } catch (error) {
+                console.error('Error formateando fecha:', error, fecha);
+                return '';
+            }
+        }
+
+        /**
+         * Formatea una fecha y hora al formato DD/MM/YYYY HH:MM (sin conversión de zona horaria)
+         * @param {Date|string} fecha - Fecha a formatear
+         * @returns {string} - Fecha y hora formateada
+         */
+        function formatearFechaHora(fecha) {
+            if (!fecha) return '';
+
+            try {
+                // Si la fecha ya está formateada, devolverla
+                if (fecha.includes('/')) {
+                    return fecha;
+                }
+
+                // Extraer fecha y hora del formato ISO (YYYY-MM-DDTHH:MM:SS.sssZ)
+                let datePart, timePart;
+
+                if (fecha.includes('T')) {
+                    [datePart, timePart] = fecha.split('T');
+                } else if (fecha.includes(' ')) {
+                    [datePart, timePart] = fecha.split(' ');
+                } else {
+                    datePart = fecha;
+                    timePart = null;
+                }
+
+                const [anio, mes, dia] = datePart.split('-');
+
+                if (!timePart || timePart === 'undefined') {
+                    // Si no hay hora, solo devolver la fecha
+                    return `${dia}/${mes}/${anio}`;
+                }
+
+                // Extraer hora y minuto (ignorar segundos y milisegundos)
+                const timeOnly = timePart.split('.')[0]; // Remover milisegundos si existen
+                const [hora, minutos] = timeOnly.split(':');
+                return `${dia}/${mes}/${anio} ${hora}:${minutos}`;
+            } catch (error) {
+                console.error('Error formateando fecha y hora:', error, fecha);
+                return fecha;
+            }
+        }
+
         // Inicialización de la aplicación
         document.addEventListener('DOMContentLoaded', function() {
             // Verificar si hay un token de reset en la URL
@@ -978,13 +1291,16 @@
             try {
                 // Cargar datos del dashboard
                 await cargarDashboard();
-                
+
                 // Cargar solicitudes de permisos
                 await cargarSolicitudes();
-                
+
                 // Cargar tipos de permisos
                 await cargarTiposPermisos();
-                
+
+                // Cargar notificaciones
+                await cargarNotificaciones();
+
             } catch (error) {
                 console.error('Error cargando dashboard:', error);
                 mostrarToast('error', 'Error al cargar el dashboard');
@@ -1005,13 +1321,21 @@
                     empleadoInfo = data.data.empleado;
                     actualizarBalancePermisos(data.data.empleado, data.data.permisos_utilizados);
                     mostrarDatosPersonales(data.data.empleado);
-                    
+
                     // Verificar si es supervisor y mostrar sección de supervisión
-                    verificarSiEsSupervisor(data.data.empleado);
-                    
+                    console.log('🚨🚨🚨 PUNTO CRÍTICO: A PUNTO DE LLAMAR verificarSiEsSupervisor');
+                    console.log('🚨 Empleado:', data.data.empleado);
+                    console.log('🚨 Token disponible:', !!token);
+                    try {
+                        await verificarSiEsSupervisor(data.data.empleado);
+                        console.log('✅ verificarSiEsSupervisor completado sin errores');
+                    } catch (err) {
+                        console.error('💥 ERROR en verificarSiEsSupervisor:', err);
+                    }
+
                     // Manejar permisos del usuario y botón de administrador
                     manejarPermisosUsuario(data.data.permisos_usuario);
-                    
+
                     return data;
                 } else {
                     throw new Error(data.error || 'Error al cargar dashboard');
@@ -1039,17 +1363,17 @@
                 
                 const data = await response.json();
                 console.log('📋 Datos de historial recibidos:', data);
-                
+
                 if (response.ok) {
-                    // Obtener solicitudes locales (pendientes) DEL USUARIO ESPECÍFICO
+                    // Limpiar localStorage obsoleto (ya tenemos base de datos)
                     const empleadoId = JSON.parse(atob(token.split('.')[1])).id;
                     const keyUsuario = `solicitudes_${empleadoId}`;
-                    const solicitudesLocales = JSON.parse(localStorage.getItem(keyUsuario) || '[]');
-                    
-                    // Combinar solicitudes del servidor con las locales
-                    const todasLasSolicitudes = [...solicitudesLocales, ...(data.data || [])];
-                    
-                    console.log('📊 Total solicitudes (locales + servidor):', todasLasSolicitudes.length);
+                    localStorage.removeItem(keyUsuario);
+
+                    // Usar solo datos del servidor (fuente de verdad)
+                    const todasLasSolicitudes = data.data || [];
+
+                    console.log('📊 Total solicitudes desde servidor:', todasLasSolicitudes.length);
                     mostrarSolicitudes(todasLasSolicitudes);
                     actualizarResumen(todasLasSolicitudes);
                 } else {
@@ -1105,7 +1429,7 @@
             document.getElementById('datosRut').textContent = empleado.rut || '-';
             document.getElementById('datosEmail').textContent = empleado.email || '-';
             document.getElementById('datosCargo').textContent = empleado.cargo || '-';
-            document.getElementById('datosSupervisor').textContent = empleado.supervisor || 'Sin asignar';
+            document.getElementById('datosSupervisor').textContent = empleado.visualizacion || 'Sin asignar';
         }
         
         function mostrarSolicitudes(solicitudes) {
@@ -1131,7 +1455,8 @@
                 const statusIcon = {
                     'PENDIENTE': 'clock text-warning',
                     'APROBADO': 'check-circle text-success',
-                    'RECHAZADO': 'times-circle text-danger'
+                    'RECHAZADO': 'times-circle text-danger',
+                    'ANULADO': 'ban text-secondary'
                 };
                 
                 // Extraer información de fechas (compatibilidad con ambos formatos)
@@ -1160,11 +1485,20 @@
                         periodoTexto = 'Período histórico';
                     }
                 } else if (fechaInicio && fechaFin && fechaInicio !== 'undefined' && fechaFin !== 'undefined') {
-                    periodoTexto = `${fechaInicio} al ${fechaFin}`;
+                    // Si las fechas son iguales, mostrar solo una vez
+                    if (fechaInicio === fechaFin) {
+                        periodoTexto = formatearFecha(fechaInicio);
+                        console.log('Periodo formateado (fecha única):', fechaInicio, '->', periodoTexto);
+                    } else {
+                        periodoTexto = `${formatearFecha(fechaInicio)} al ${formatearFecha(fechaFin)}`;
+                        console.log('Periodo formateado (rango):', fechaInicio, fechaFin, '->', periodoTexto);
+                    }
                 } else if (fechaInicio && fechaInicio !== 'undefined') {
-                    periodoTexto = `Desde ${fechaInicio}`;
+                    periodoTexto = `Desde ${formatearFecha(fechaInicio)}`;
+                    console.log('Periodo formateado (desde):', fechaInicio, '->', periodoTexto);
                 } else {
                     periodoTexto = 'Fechas no especificadas';
+                    console.log('Periodo: fechas no especificadas');
                 }
                 
                 // Determinar si mostrar observaciones completas o resumidas
@@ -1212,7 +1546,7 @@
                                 <div class="flex-grow-1">
                                     <h6 class="card-title mb-2">
                                         <i class="fas fa-calendar-alt me-2"></i>
-                                        ${solicitud.tipo_permiso_nombre || 'Tipo no definido'}
+                                        ${solicitud.tipo_nombre || solicitud.tipo_permiso_nombre || 'Tipo no definido'}
                                     </h6>
                                     <p class="card-text text-muted mb-2">
                                         <strong><i class="fas fa-calendar me-1"></i> Período:</strong> 
@@ -1225,14 +1559,21 @@
                                     ${observacionesHTML}
                                 </div>
                                 <div class="text-end ms-3">
-                                    <span class="badge bg-${estado === 'APROBADO' ? 'success' : estado === 'RECHAZADO' ? 'danger' : 'warning'} mb-2">
+                                    <span class="badge bg-${estado === 'APROBADO' ? 'success' : estado === 'RECHAZADO' ? 'danger' : estado === 'ANULADO' ? 'secondary' : 'warning'} mb-2">
                                         <i class="fas fa-${statusIcon[estado]} me-1"></i> ${estado}
                                     </span>
                                     <br>
                                     <small class="text-muted">
-                                        <i class="fas fa-clock me-1"></i>
-                                        ${new Date(solicitud.created_at).toLocaleDateString('es-ES')}
+                                        ${solicitud.fecha_aprobacion ? formatearFechaHora(solicitud.fecha_aprobacion) :
+                                          solicitud.fecha_anulacion ? formatearFechaHora(solicitud.fecha_anulacion) :
+                                          formatearFechaHora(solicitud.created_at)}
                                     </small>
+                                    ${(estado === 'APROBADO' || estado === 'RECHAZADO' || estado === 'ANULADO') ? `
+                                        <br><br>
+                                        <button class="btn btn-sm btn-outline-${estado === 'APROBADO' ? 'primary' : estado === 'ANULADO' ? 'secondary' : 'danger'}" onclick="verPDF(${solicitud.id})">
+                                            <i class="fas fa-file-pdf me-1"></i> Ver PDF
+                                        </button>
+                                    ` : ''}
                                 </div>
                             </div>
                         </div>
@@ -1331,6 +1672,66 @@
             document.getElementById('alertaLimitesPermiso').className = 'alert d-none';
         }
         
+        function mostrarModalCambiarPassword() {
+            const modal = new bootstrap.Modal(document.getElementById('modalCambiarPassword'));
+            modal.show();
+
+            // Limpiar el formulario
+            document.getElementById('formCambiarPassword').reset();
+        }
+
+        async function cambiarPassword(event) {
+            event.preventDefault();
+
+            const passwordActual = document.getElementById('passwordActual').value;
+            const passwordNuevo = document.getElementById('passwordNuevo').value;
+            const confirmPassword = document.getElementById('passwordConfirmar').value;
+
+            // Validar que las contraseñas coincidan
+            if (passwordNuevo !== confirmPassword) {
+                mostrarToast('error', 'Las contraseñas nuevas no coinciden');
+                return;
+            }
+
+            if (passwordNuevo.length < 6) {
+                mostrarToast('error', 'La contraseña debe tener al menos 6 caracteres');
+                return;
+            }
+
+            try {
+                const response = await fetch('/api/empleados-auth/cambiar-password', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify({
+                        passwordActual,
+                        passwordNuevo,
+                        confirmPassword
+                    })
+                });
+
+                const data = await response.json();
+
+                if (response.ok && data.success) {
+                    // Cerrar modal
+                    bootstrap.Modal.getInstance(document.getElementById('modalCambiarPassword')).hide();
+
+                    // Limpiar formulario
+                    document.getElementById('formCambiarPassword').reset();
+
+                    // Mostrar mensaje de éxito
+                    mostrarToast('success', 'Contraseña cambiada exitosamente');
+                } else {
+                    throw new Error(data.error || data.message || 'Error al cambiar la contraseña');
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                mostrarToast('error', error.message);
+            }
+        }
+
         function mostrarModalEditarDatos() {
             if (empleadoInfo) {
                 // Solo mostrar el RUT como información, no editable
@@ -1657,7 +2058,35 @@
             mostrarToast('info', 'Actualizando dashboard...');
             cargarDashboardCompleto();
         }
-        
+
+        async function verPDF(solicitudId) {
+            try {
+                const url = `/api/solicitudes-empleado/descargar-pdf/${solicitudId}`;
+
+                // Abrir PDF en nueva pestaña con el token de autenticación
+                const response = await fetch(url, {
+                    method: 'GET',
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.error || 'Error al cargar el PDF');
+                }
+
+                // Obtener el PDF como blob y abrirlo en nueva pestaña
+                const blob = await response.blob();
+                const pdfUrl = URL.createObjectURL(blob);
+                window.open(pdfUrl, '_blank');
+
+            } catch (error) {
+                console.error('Error al abrir PDF:', error);
+                mostrarToast('error', 'Error al abrir el PDF: ' + error.message);
+            }
+        }
+
         function manejarPermisosUsuario(permisos) {
             const btnAdmin = document.getElementById('btnAdmin');
             
@@ -1682,11 +2111,184 @@
             empleadoInfo = null;
             tiposPermisosData = [];
             empleadoTemporal = null;
-            
+
             mostrarToast('success', 'Sesión cerrada correctamente');
-            setTimeout(mostrarLogin, 1000);
+            setTimeout(() => {
+                window.location.href = '/';
+            }, 1000);
         }
-        
+
+        // === FUNCIONES PARA NOTIFICACIONES ===
+
+        async function cargarNotificaciones() {
+            try {
+                const response = await fetch('/api/notificaciones/empleado', {
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+
+                const data = await response.json();
+
+                if (response.ok && data.success) {
+                    const notificaciones = data.notificaciones || [];
+                    mostrarNotificaciones(notificaciones);
+                    actualizarBadgeNotificaciones(notificaciones);
+                }
+            } catch (error) {
+                console.error('Error cargando notificaciones:', error);
+            }
+        }
+
+        function mostrarNotificaciones(notificaciones) {
+            const container = document.getElementById('notificationList');
+
+            if (!notificaciones || notificaciones.length === 0) {
+                container.innerHTML = `
+                    <div class="notification-empty">
+                        <i class="fas fa-bell-slash fa-2x mb-2"></i>
+                        <p>No tienes notificaciones</p>
+                    </div>
+                `;
+                return;
+            }
+
+            container.innerHTML = notificaciones.map(n => {
+                const iconType = getNotificationIconType(n.tipo);
+                const timeAgo = formatTimeAgo(n.created_at);
+                const unreadClass = n.leida ? '' : 'unread';
+
+                return `
+                    <div class="notification-item ${unreadClass}" onclick="marcarNotificacionLeida(${n.id})">
+                        <div class="d-flex">
+                            <div class="notification-icon ${iconType}">
+                                <i class="fas ${getNotificationIcon(n.tipo)}"></i>
+                            </div>
+                            <div class="notification-content">
+                                <div class="notification-title">${n.titulo}</div>
+                                <div class="notification-message">${n.mensaje}</div>
+                                <div class="notification-time">
+                                    <i class="far fa-clock"></i> ${timeAgo}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function getNotificationIconType(tipo) {
+            const typeMap = {
+                'NUEVA_SOLICITUD': 'info',
+                'SOLICITUD_APROBADA': 'success',
+                'SOLICITUD_RECHAZADA': 'danger',
+                'RECORDATORIO': 'warning'
+            };
+            return typeMap[tipo] || 'info';
+        }
+
+        function getNotificationIcon(tipo) {
+            const iconMap = {
+                'NUEVA_SOLICITUD': 'fa-file-alt',
+                'SOLICITUD_APROBADA': 'fa-check-circle',
+                'SOLICITUD_RECHAZADA': 'fa-times-circle',
+                'RECORDATORIO': 'fa-exclamation-triangle'
+            };
+            return iconMap[tipo] || 'fa-bell';
+        }
+
+        function formatTimeAgo(timestamp) {
+            const now = new Date();
+            const time = new Date(timestamp);
+            const diff = now - time;
+            const minutes = Math.floor(diff / 60000);
+            const hours = Math.floor(minutes / 60);
+            const days = Math.floor(hours / 24);
+
+            if (minutes < 1) return 'Ahora';
+            if (minutes < 60) return `Hace ${minutes} minuto${minutes > 1 ? 's' : ''}`;
+            if (hours < 24) return `Hace ${hours} hora${hours > 1 ? 's' : ''}`;
+            return `Hace ${days} día${days > 1 ? 's' : ''}`;
+        }
+
+        function actualizarBadgeNotificaciones(notificaciones) {
+            const badge = document.getElementById('notificationBadge');
+            const noLeidas = notificaciones.filter(n => !n.leida).length;
+
+            if (noLeidas > 0) {
+                badge.textContent = noLeidas > 99 ? '99+' : noLeidas;
+                badge.style.display = 'block';
+            } else {
+                badge.style.display = 'none';
+            }
+        }
+
+        function toggleNotifications() {
+            const dropdown = document.getElementById('notificationDropdown');
+            dropdown.classList.toggle('show');
+
+            if (dropdown.classList.contains('show')) {
+                cargarNotificaciones();
+            }
+        }
+
+        async function marcarNotificacionLeida(id) {
+            try {
+                const response = await fetch(`/api/notificaciones/${id}/leer`, {
+                    method: 'PUT',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    }
+                });
+
+                if (response.ok) {
+                    cargarNotificaciones();
+                }
+            } catch (error) {
+                console.error('Error marcando notificación como leída:', error);
+            }
+        }
+
+        async function marcarTodasLeidas() {
+            try {
+                const response = await fetch('/api/notificaciones/empleado/leer-todas', {
+                    method: 'PUT',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    }
+                });
+
+                if (response.ok) {
+                    cargarNotificaciones();
+                    mostrarToast('success', 'Todas las notificaciones marcadas como leídas');
+                } else {
+                    mostrarToast('error', 'Error al marcar notificaciones como leídas');
+                }
+            } catch (error) {
+                console.error('Error marcando todas como leídas:', error);
+                mostrarToast('error', 'Error al marcar notificaciones como leídas');
+            }
+        }
+
+        // Cerrar dropdown al hacer click fuera
+        document.addEventListener('click', function(e) {
+            const dropdown = document.getElementById('notificationDropdown');
+            const button = document.getElementById('notificationBtn');
+
+            if (dropdown && button && !dropdown.contains(e.target) && !button.contains(e.target)) {
+                dropdown.classList.remove('show');
+            }
+        });
+
+        // Cargar notificaciones cada 30 segundos
+        setInterval(() => {
+            if (token) {
+                cargarNotificaciones();
+            }
+        }, 30000);
+
         // === FUNCIONES PARA CSV ===
         
         let datosCSV = [];
@@ -1739,9 +2341,9 @@
                         nombre: campos[0].trim(),
                         rut: campos[1].trim(),
                         email: campos[2].trim(),
-                        fechaNacimiento: formatearFecha(campos[3].trim()),
-                        fechaIngreso: formatearFecha(campos[4].trim()),
-                        fechaTermino: formatearFecha(campos[5].trim()) || null,
+                        fechaNacimiento: formatearFechaParaDB(campos[3].trim()),
+                        fechaIngreso: formatearFechaParaDB(campos[4].trim()),
+                        fechaTermino: formatearFechaParaDB(campos[5].trim()) || null,
                         horasSemanales: parseInt(campos[6].trim()) || 44,
                         supervisor: campos[7].trim(),
                         cargo: campos[8].trim()
@@ -1762,16 +2364,16 @@
             }
         }
         
-        function formatearFecha(fechaStr) {
+        function formatearFechaParaDB(fechaStr) {
             if (!fechaStr || fechaStr.trim() === '') return null;
-            
-            // Convertir formato DD/MM/YYYY a YYYY-MM-DD
+
+            // Convertir formato DD/MM/YYYY a YYYY-MM-DD para la base de datos
             const partes = fechaStr.split('/');
             if (partes.length === 3) {
                 const [dia, mes, año] = partes;
                 return `${año}-${mes.padStart(2, '0')}-${dia.padStart(2, '0')}`;
             }
-            
+
             return fechaStr;
         }
         
@@ -2083,40 +2685,40 @@
         };
         
         // Verificar si el usuario es supervisor y mostrar sección
-        function verificarSiEsSupervisor(empleadoInfo) {
+        async function verificarSiEsSupervisor(empleadoInfo) {
             console.log('🔍 Verificando si es supervisor:', empleadoInfo);
             console.log('- Nombre:', empleadoInfo?.nombre);
-            console.log('- Visualización:', empleadoInfo?.visualizacion);
-            console.log('- Autorización:', empleadoInfo?.autorizacion);
-            
-            // Si el empleado tiene permisos de visualización o autorización, mostrar la sección de supervisión
-            let esSupervisor = empleadoInfo && (empleadoInfo.visualizacion === true || empleadoInfo.autorizacion === true);
-            
-            // JERARQUÍA DE SUPERVISORES: Verificar si es supervisor según la jerarquía real
-            if (empleadoInfo && empleadoInfo.nombre) {
-                const nombre = empleadoInfo.nombre.toLowerCase();
-                
-                // Lista de supervisores conocidos (incluye toda la jerarquía)
-                const supervisores = ['andrea', 'ronny', 'cisterna', 'patricio', 'bravo'];
-                
-                const esSuperisorJerarquia = supervisores.some(supervisor => 
-                    nombre.includes(supervisor)
-                );
-                
-                if (esSuperisorJerarquia) {
-                    console.log('🔧 Usuario identificado como supervisor:', empleadoInfo.nombre);
-                    esSupervisor = true;
+
+            try {
+                // Consultar al servidor si el empleado tiene subordinados
+                console.log('🔍 Consultando subordinados al servidor...');
+                const response = await fetch('/api/solicitudes-empleado/subordinados', {
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+                    console.log('📊 Respuesta del servidor:', data);
+
+                    const tieneSubordinados = data.subordinados && data.subordinados.length > 0;
+                    console.log('👥 Tiene subordinados:', tieneSubordinados, '- Cantidad:', data.subordinados?.length || 0);
+
+                    if (tieneSubordinados) {
+                        console.log('✅ Mostrando pestaña de supervisión');
+                        document.getElementById('tab-supervision').style.display = 'block';
+                        cargarSolicitudesSubordinados();
+                    } else {
+                        console.log('❌ No tiene subordinados - ocultando pestaña');
+                        document.getElementById('tab-supervision').style.display = 'none';
+                    }
+                } else {
+                    console.log('⚠️ Error consultando subordinados, ocultando pestaña');
+                    document.getElementById('tab-supervision').style.display = 'none';
                 }
-            }
-            
-            console.log('- Es supervisor:', esSupervisor);
-            
-            if (esSupervisor) {
-                console.log('✅ Mostrando pestaña de supervisión');
-                document.getElementById('tab-supervision').style.display = 'block';
-                cargarSolicitudesSubordinados();
-            } else {
-                console.log('❌ No es supervisor - ocultando pestaña');
+            } catch (error) {
+                console.error('❌ Error verificando subordinados:', error);
                 document.getElementById('tab-supervision').style.display = 'none';
             }
         }
@@ -2141,9 +2743,10 @@
                 console.log('👥 RESPUESTA COMPLETA del servidor:', data);
                 console.log('👥 Subordinados encontrados:', data.subordinados);
                 console.log('👥 Solicitudes encontradas:', data.data);
-                
+                console.log('👥 ROL del usuario:', data.rol);
+
                 if (response.ok) {
-                    mostrarSolicitudesSubordinados(data.data || []);
+                    mostrarSolicitudesSubordinados(data.data || [], data.rol);
                 } else {
                     throw new Error(data.message || 'Error al cargar solicitudes de subordinados');
                 }
@@ -2160,7 +2763,7 @@
         }
         
         // Mostrar solicitudes de subordinados
-        function mostrarSolicitudesSubordinados(solicitudes) {
+        function mostrarSolicitudesSubordinados(solicitudes, rolUsuario) {
             const container = document.getElementById('listaSolicitudesSubordinados');
             
             if (solicitudes.length === 0) {
@@ -2199,12 +2802,17 @@
                                     <p class="mb-1"><strong>Empleado:</strong> ${solicitud.empleado.nombre}</p>
                                     <p class="mb-1"><strong>RUT:</strong> ${solicitud.empleado.rut}</p>
                                     <p class="mb-1"><strong>Cargo:</strong> ${solicitud.empleado.cargo}</p>
-                                    <p class="mb-1"><strong>Fecha:</strong> ${solicitud.fecha_desde}${solicitud.fecha_hasta !== solicitud.fecha_desde ? ' al ' + solicitud.fecha_hasta : ''}</p>
+                                    <p class="mb-1"><strong>Fecha:</strong> ${solicitud.fecha_desde === solicitud.fecha_hasta ? formatearFecha(solicitud.fecha_desde) : formatearFecha(solicitud.fecha_desde) + ' al ' + formatearFecha(solicitud.fecha_hasta)}</p>
                                     <p class="mb-1"><strong>Motivo:</strong> ${solicitud.motivo}</p>
-                                    <p class="text-muted small">Solicitado: ${new Date(solicitud.fecha_solicitud).toLocaleDateString()}</p>
+                                    <p class="text-muted small">Solicitado: ${formatearFecha(solicitud.fecha_solicitud)}</p>
                                 </div>
                                 <div class="col-md-4 text-end">
-                                    ${solicitud.estado === 'PENDIENTE' ? `
+                                    ${
+                                        // Mostrar botones según el rol del usuario y el estado de la solicitud
+                                        (rolUsuario === 'supervisor_visualizacion' && solicitud.estado === 'PENDIENTE') ||
+                                        (rolUsuario === 'autorizador_final' && solicitud.estado === 'APROBADO_SUPERVISOR') ||
+                                        (rolUsuario === 'autorizador_final' && solicitud.estado === 'PENDIENTE')  // Flujo de un paso
+                                        ? `
                                         <div class="btn-group-vertical gap-2">
                                             <button class="btn btn-success btn-sm" onclick="aprobarSolicitud(${solicitud.id})">
                                                 <i class="fas fa-check me-1"></i> Aprobar
@@ -2261,7 +2869,7 @@
         async function rechazarSolicitud(id) {
             const motivo = prompt('Ingresa el motivo del rechazo:');
             if (!motivo) return;
-            
+
             try {
                 const response = await fetch(`/api/solicitudes-empleado/rechazar-supervisor/${id}`, {
                     method: 'POST',
@@ -2269,7 +2877,7 @@
                         'Authorization': `Bearer ${token}`,
                         'Content-Type': 'application/json'
                     },
-                    body: JSON.stringify({ motivo_rechazo: motivo })
+                    body: JSON.stringify({ motivo: motivo })
                 });
                 
                 const data = await response.json();

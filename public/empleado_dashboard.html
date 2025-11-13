@@ -250,6 +250,44 @@
 
         document.getElementById('nombreEmpleado').textContent = userData.nombre || 'Usuario';
 
+        /**
+         * Formatea una fecha al formato DD/MM/YYYY
+         * @param {Date|string} fecha - Fecha a formatear
+         * @returns {string} - Fecha formateada
+         */
+        function formatearFecha(fecha) {
+            if (!fecha) return '';
+
+            try {
+                // Si ya está formateada DD/MM/AAAA, devolverla
+                if (typeof fecha === 'string' && fecha.match(/^\d{2}\/\d{2}\/\d{4}$/)) {
+                    return fecha;
+                }
+
+                // Extraer solo la parte de fecha (YYYY-MM-DD) sin conversión de zona horaria
+                const dateOnly = fecha.split('T')[0];
+                const parts = dateOnly.split('-');
+
+                // Validar que tenga 3 partes
+                if (parts.length !== 3) {
+                    return '';
+                }
+
+                const [anio, mes, dia] = parts;
+
+                // Si no tiene formato válido, devolver vacío
+                if (!anio || !mes || !dia) {
+                    return '';
+                }
+
+                // Formatear manualmente como DD/MM/YYYY
+                return `${dia}/${mes}/${anio}`;
+            } catch (error) {
+                console.error('Error formateando fecha:', error, fecha);
+                return fecha;
+            }
+        }
+
         async function cargarPermisos() {
             try {
                 const response = await fetch('/api/solicitudes-empleado/historial', {
@@ -312,7 +350,7 @@
                                         ${permiso.tipo_permiso_nombre || 'Tipo no definido'}
                                     </h6>
                                     <p class="card-text text-muted mb-2">
-                                        <strong>Período:</strong> ${permiso.fecha_inicio} al ${permiso.fecha_fin}
+                                        <strong>Período:</strong> ${permiso.fecha_inicio === permiso.fecha_fin ? formatearFecha(permiso.fecha_inicio) : formatearFecha(permiso.fecha_inicio) + ' al ' + formatearFecha(permiso.fecha_fin)}
                                     </p>
                                     <p class="card-text mb-2">${permiso.motivo}</p>
                                     ${permiso.observaciones ? `<p class="card-text"><small class="text-muted"><strong>Observaciones:</strong> ${permiso.observaciones}</small></p>` : ''}
@@ -423,7 +461,7 @@
         function cerrarSesion() {
             localStorage.clear();
             sessionStorage.clear();
-            window.location.href = '/login_simple.html';
+            window.location.href = '/';
         }
 
         // Variables globales para balance
