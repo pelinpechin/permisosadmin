@@ -554,9 +554,11 @@ async function query(sql, params = []) {
         }
         
         // Consulta compleja con JOIN para subordinados (múltiples tablas)
-        if (sql.includes('SELECT sp.*') && sql.includes('LEFT JOIN empleados e ON') && sql.includes('LEFT JOIN tipos_permisos tp ON')) {
+        // NOTA: Este handler debe venir DESPUÉS del handler de /admin/todas
+        if (sql.includes('SELECT sp.*') && sql.includes('LEFT JOIN empleados e ON') && sql.includes('LEFT JOIN tipos_permisos tp ON') &&
+            !sql.includes('LEFT JOIN usuarios_admin')) {
             console.log('🔍 Consulta compleja JOIN para subordinados detectada');
-            
+
             // Extraer los IDs de empleados del IN clause
             const inClauseMatch = sql.match(/sp\.empleado_id IN \(([^)]+)\)/);
             if (!inClauseMatch) {
@@ -653,13 +655,15 @@ async function query(sql, params = []) {
 
             console.log('📊 Query compleja /admin/todas detectada');
 
-            // Construir query con filtros
+            // Construir query con filtros (usando LEFT JOIN en vez de INNER)
+            // Nota: Debemos especificar las relaciones FK porque hay 2 relaciones con empleados
             let dbQuery = supabase
                 .from('solicitudes_permisos')
                 .select(`
                     *,
-                    empleados!inner(nombre, rut, cargo),
-                    tipos_permisos!inner(codigo, nombre, descripcion, color_hex),
+                    empleado:empleados!solicitudes_permisos_empleado_id_fkey(nombre, rut, cargo),
+                    tipos_permisos(codigo, nombre, descripcion, color_hex),
+                    aprobador:empleados!solicitudes_permisos_aprobado_por_fkey(nombre),
                     usuarios_admin(nombre)
                 `)
                 .order('created_at', { ascending: false });
@@ -683,14 +687,14 @@ async function query(sql, params = []) {
             // Transformar datos para compatibilidad
             const transformedData = (data || []).map(item => ({
                 ...item,
-                empleado_nombre: item.empleados?.nombre,
-                empleado_rut: item.empleados?.rut,
-                empleado_cargo: item.empleados?.cargo,
+                empleado_nombre: item.empleado?.nombre,
+                empleado_rut: item.empleado?.rut,
+                empleado_cargo: item.empleado?.cargo,
                 tipo_codigo: item.tipos_permisos?.codigo,
                 tipo_nombre: item.tipos_permisos?.nombre,
                 tipo_descripcion: item.tipos_permisos?.descripcion,
                 tipo_color: item.tipos_permisos?.color_hex,
-                aprobado_por_nombre: item.usuarios_admin?.nombre
+                aprobado_por_nombre: item.aprobador?.nombre || item.usuarios_admin?.nombre
             }));
 
             console.log(`✅ Query /admin/todas exitosa: ${transformedData.length} resultados`);
