@@ -896,10 +896,41 @@ async function run(sql, params = []) {
 
             console.log('📝 Datos a insertar:', empleadoData);
 
-            const { data, error } = await supabase
+            let { data, error } = await supabase
                 .from('empleados')
                 .insert(empleadoData)
                 .select();
+
+            // Si falla por secuencia desincronizada, obtener el siguiente ID manualmente
+            if (error && error.code === '23505' && error.message.includes('empleados_pkey')) {
+                console.log('⚠️ Error de secuencia detectado, obteniendo siguiente ID...');
+
+                // Obtener el ID máximo actual
+                const { data: maxData, error: maxError } = await supabase
+                    .from('empleados')
+                    .select('id')
+                    .order('id', { ascending: false })
+                    .limit(1)
+                    .single();
+
+                if (maxError) {
+                    console.error('❌ Error obteniendo max ID:', maxError);
+                    throw error; // Lanzar el error original
+                }
+
+                const nextId = (maxData?.id || 0) + 1;
+                console.log('🔢 Intentando con ID explícito:', nextId);
+
+                // Reintentar con ID explícito
+                const empleadoDataWithId = { ...empleadoData, id: nextId };
+                const result = await supabase
+                    .from('empleados')
+                    .insert(empleadoDataWithId)
+                    .select();
+
+                data = result.data;
+                error = result.error;
+            }
 
             if (error) {
                 console.error('📝 Error en INSERT empleados:', error);
