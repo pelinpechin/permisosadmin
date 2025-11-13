@@ -128,3 +128,6 @@ CREATE INDEX idx_solicitudes_estado ON solicitudes_permisos(estado);
 CREATE INDEX idx_notificaciones_empleado ON notificaciones(empleado_id);
 CREATE INDEX idx_empleados_supervisor ON empleados(supervisor);
 CREATE INDEX idx_notificaciones_leida ON notificaciones(leida);
+
+-- IMPORTANTE: Después de migrar los datos, ejecutar scripts/fix_sequences.sql
+-- para resetear las secuencias de IDs y evitar errores de duplicados
