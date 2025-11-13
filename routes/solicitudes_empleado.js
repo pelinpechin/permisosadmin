@@ -468,34 +468,51 @@ router.get('/dashboard', verificarTokenEmpleado, async (req, res) => {
         `, [req.empleado.id]);
         
         res.json({
-            empleado: {
-                id: empleado.id,
-                nombre: empleado.nombre,
-                rut: empleado.rut,
-                email: empleado.email,
-                cargo: empleado.cargo,
-                supervisor: empleado.supervisor,
-                negociacion_colectiva: empleado.negociacion_colectiva,
-                visualizacion: empleado.visualizacion,
-                autorizacion: empleado.autorizacion,
-                uso_primer_semestre: empleado.uso_primer_semestre,
-                uso_segundo_semestre: empleado.uso_segundo_semestre,
-                sin_goce: empleado.sin_goce,
-                beneficio_licencia: empleado.beneficio_licencia,
-                licencias_total: empleado.licencias_total,
-                atrasos: empleado.atrasos,
-                atrasos_justificados: empleado.atrasos_justificados,
-                no_marcaciones: empleado.no_marcaciones
+            success: true,
+            data: {
+                empleado: {
+                    id: empleado.id,
+                    nombre: empleado.nombre,
+                    rut: empleado.rut,
+                    email: empleado.email,
+                    cargo: empleado.cargo,
+                    supervisor: empleado.supervisor,
+                    negociacion_colectiva: empleado.negociacion_colectiva,
+                    visualizacion: empleado.visualizacion,
+                    autorizacion: empleado.autorizacion,
+                    uso_primer_semestre: empleado.uso_primer_semestre,
+                    uso_segundo_semestre: empleado.uso_segundo_semestre,
+                    sin_goce: empleado.sin_goce,
+                    beneficio_licencia: empleado.beneficio_licencia,
+                    licencias_total: empleado.licencias_total,
+                    atrasos: empleado.atrasos,
+                    atrasos_justificados: empleado.atrasos_justificados,
+                    no_marcaciones: empleado.no_marcaciones
+                },
+                permisos_utilizados: {
+                    uso_primer_semestre: empleado.uso_primer_semestre,
+                    uso_segundo_semestre: empleado.uso_segundo_semestre,
+                    sin_goce: empleado.sin_goce,
+                    beneficio_licencia: empleado.beneficio_licencia,
+                    licencias_total: empleado.licencias_total,
+                    atrasos: empleado.atrasos,
+                    atrasos_justificados: empleado.atrasos_justificados,
+                    no_marcaciones: empleado.no_marcaciones
+                },
+                permisos_usuario: {
+                    puede_crear_solicitudes: true,
+                    puede_cancelar_solicitudes: true
+                },
+                estadisticas: {
+                    total: estadisticas[0]?.total || 0,
+                    pendientes: estadisticas[0]?.pendientes || 0,
+                    aprobadas: estadisticas[0]?.aprobadas || 0,
+                    rechazadas: estadisticas[0]?.rechazadas || 0,
+                    canceladas: estadisticas[0]?.canceladas || 0
+                },
+                solicitudesRecientes: solicitudesRecientes || [],
+                notificaciones: []
             },
-            estadisticas: {
-                total: estadisticas[0]?.total || 0, 
-                pendientes: estadisticas[0]?.pendientes || 0, 
-                aprobadas: estadisticas[0]?.aprobadas || 0, 
-                rechazadas: estadisticas[0]?.rechazadas || 0, 
-                canceladas: estadisticas[0]?.canceladas || 0
-            },
-            solicitudesRecientes: solicitudesRecientes || [],
-            notificaciones: [],
             mensaje: 'Bienvenido al Sistema de Permisos Administrativos'
         });
 
