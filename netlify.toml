@@ -4,10 +4,12 @@
 
 [[redirects]]
   from = "/api/*"
-  to = "/.netlify/functions/:splat"
+  to = "https://permisosadmin.onrender.com/api/:splat"
   status = 200
+  force = true
 
 [[headers]]
   for = "/*"
   [headers.values]
-    Content-Security-Policy = "default-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com data: blob:; connect-src 'self' https://cdn.jsdelivr.net"
+    Content-Security-Policy = "default-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com data: blob:; connect-src 'self' https://cdn.jsdelivr.net https://permisosadmin.onrender.com"
+    Access-Control-Allow-Origin = "*"
