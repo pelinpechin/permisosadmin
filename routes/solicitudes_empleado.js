@@ -1029,6 +1029,66 @@ async function validarLimitesPermisos(empleadoId, codigoPermiso, fechaPermiso) {
 }
 
 /**
+ * GET /api/solicitudes-empleado/admin/todas
+ * Obtener todas las solicitudes de todos los empleados (solo para admins)
+ */
+router.get('/admin/todas', async (req, res) => {
+    try {
+        const { estado, empleado, mes, year } = req.query;
+
+        let sql = `
+            SELECT sp.*,
+                   e.nombre as empleado_nombre, e.rut as empleado_rut, e.cargo as empleado_cargo,
+                   tp.codigo as tipo_codigo, tp.nombre as tipo_nombre, tp.descripcion as tipo_descripcion, tp.color_hex as tipo_color,
+                   ua.nombre as aprobado_por_nombre
+            FROM solicitudes_permisos sp
+            LEFT JOIN empleados e ON sp.empleado_id = e.id
+            LEFT JOIN tipos_permisos tp ON sp.tipo_permiso_id = tp.id
+            LEFT JOIN usuarios_admin ua ON sp.aprobado_por = ua.id
+            WHERE 1=1
+        `;
+        const params = [];
+
+        // Filtros opcionales
+        if (estado) {
+            sql += ' AND sp.estado = ?';
+            params.push(estado);
+        }
+
+        if (empleado) {
+            sql += ' AND e.nombre LIKE ?';
+            params.push(`%${empleado}%`);
+        }
+
+        if (mes) {
+            sql += ' AND strftime("%m", sp.fecha_desde) = ?';
+            params.push(mes.toString().padStart(2, '0'));
+        }
+
+        if (year) {
+            sql += ' AND strftime("%Y", sp.fecha_desde) = ?';
+            params.push(year.toString());
+        }
+
+        sql += ' ORDER BY sp.created_at DESC';
+
+        const solicitudes = await query(sql, params);
+
+        res.json({
+            success: true,
+            solicitudes: solicitudes || []
+        });
+
+    } catch (error) {
+        console.error('Error obteniendo todas las solicitudes:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Error interno del servidor'
+        });
+    }
+});
+
+/**
  * GET /api/solicitudes-empleado/subordinados
  * Obtener solicitudes de empleados subordinados (para supervisores)
  */
