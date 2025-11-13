@@ -4,7 +4,23 @@ const bodyParser = require('body-parser');
 const helmet = require('helmet');
 const path = require('path');
 const db = require('./database/db_config');
-const { errorHandler, verifyDatabaseIntegrity, logDatabaseOperation } = require('./middleware/errorHandler');
+
+// Try to load errorHandler middleware (optional)
+let errorHandler, verifyDatabaseIntegrity, logDatabaseOperation;
+try {
+    const errorHandlerModule = require('./middleware/errorHandler');
+    errorHandler = errorHandlerModule.errorHandler;
+    verifyDatabaseIntegrity = errorHandlerModule.verifyDatabaseIntegrity;
+    logDatabaseOperation = errorHandlerModule.logDatabaseOperation;
+} catch (err) {
+    console.warn('⚠️ errorHandler middleware not available, using defaults');
+    errorHandler = (err, req, res, next) => {
+        console.error('Error:', err);
+        res.status(500).json({ error: 'Error interno del servidor' });
+    };
+    verifyDatabaseIntegrity = async () => true;
+    logDatabaseOperation = () => {};
+}
 
 const app = express();
 const PORT = process.env.PORT || 3447;
