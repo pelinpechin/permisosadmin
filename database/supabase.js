@@ -1250,7 +1250,7 @@ async function run(sql, params = []) {
                     .from('solicitudes_permisos')
                     .update(updateData)
                     .eq('id', id)
-                    .select();
+                    .select('*');
 
                 if (error) throw error;
                 console.log('✅ Solicitud anulada exitosamente:', data);
@@ -1259,13 +1259,13 @@ async function run(sql, params = []) {
                 // Simple estado update
                 const estado = params[0];
                 const id = params[1];
-                
+
                 const { data, error } = await supabase
                     .from('solicitudes_permisos')
                     .update({ estado })
                     .eq('id', id)
-                    .select();
-                
+                    .select('*');
+
                 if (error) throw error;
                 return { changes: data.length };
             }
