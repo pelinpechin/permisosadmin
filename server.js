@@ -150,7 +150,7 @@ app.use(errorHandler);
 
 // Inicializar servidor con verificación de base de datos
 app.listen(PORT, async () => {
-  console.log(`🚀 Servidor ejecutándose en puerto ${PORT}`);
+  console.log(`🚀 Servidor ejecutándose en puerto ${PORT} - BUILD 2025-11-14-15:30`);
   console.log(`🌐 Accede a: http://localhost:${PORT}`);
 
   // Verificar integridad de base de datos al iniciar
