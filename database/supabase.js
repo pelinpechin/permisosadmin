@@ -498,33 +498,32 @@ async function query(sql, params = []) {
             return [{ num: maxNum }];
         }
 
-        // Todas las consultas de empleados
-        if (sql.includes('SELECT') && sql.includes('FROM empleados')) {
-            let dbQuery = supabase.from('empleados').select('*');
+        // Subordinados query - complex WHERE with visualizacion/autorizacion
+        if (sql.includes('FROM empleados') && sql.includes('visualizacion') && sql.includes('autorizacion') && sql.includes('activo = true')) {
+            // Pattern: WHERE (visualizacion = ? OR visualizacion LIKE ? OR autorizacion = ? OR autorizacion LIKE ?) AND activo = true
+            // params: [supervisorNombre, '%supervisorNombre%', supervisorNombre, '%supervisorNombre%']
+            const supervisorNombre = params[0];
+            console.log('🔍 Búsqueda de subordinados para supervisor:', supervisorNombre);
 
-            // Parse WHERE clauses
-            if (sql.includes('WHERE')) {
-                // WHERE id = ? (with placeholder)
-                if (sql.includes('WHERE id = ?') && params.length > 0) {
-                    dbQuery = dbQuery.eq('id', params[0]);
-                }
-                // WHERE id = <number> (literal value)
-                else if (sql.includes('WHERE id = ')) {
-                    const idMatch = sql.match(/WHERE id = (\d+)/);
-                    if (idMatch) {
-                        dbQuery = dbQuery.eq('id', parseInt(idMatch[1]));
-                    }
-                }
-                // WHERE nombre LIKE ?
-                else if (sql.includes('WHERE nombre LIKE ?') && params.length > 0) {
-                    const searchTerm = params[0].replace(/%/g, '');
-                    dbQuery = dbQuery.ilike('nombre', `%${searchTerm}%`);
-                }
-                // Add more WHERE patterns as needed
-            } else {
-                // Si no tiene WHERE específico, agregar activo = true
-                dbQuery = dbQuery.eq('activo', true);
+            const { data, error } = await supabase
+                .from('empleados')
+                .select('id, nombre, rut, cargo, visualizacion, autorizacion')
+                .eq('activo', true)
+                .or(`visualizacion.eq.${supervisorNombre},visualizacion.ilike.%${supervisorNombre}%,autorizacion.eq.${supervisorNombre},autorizacion.ilike.%${supervisorNombre}%`);
+
+            if (error) {
+                console.error('❌ Error en búsqueda de subordinados:', error);
+                throw error;
             }
+
+            console.log(`✅ Encontrados ${data ? data.length : 0} subordinados`);
+            return data || [];
+        }
+
+        // Simple empleados queries (only when NO WHERE clause)
+        if (sql.includes('SELECT') && sql.includes('FROM empleados') && !sql.includes('WHERE')) {
+            // Query without WHERE clause - return all active employees
+            let dbQuery = supabase.from('empleados').select('*').eq('activo', true);
 
             // Si tiene LIMIT
             if (sql.includes('LIMIT')) {
