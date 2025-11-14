@@ -513,7 +513,7 @@ async function query(sql, params = []) {
             const { data, error } = await supabase
                 .from('empleados')
                 .select('id, nombre, rut, cargo, visualizacion, autorizacion')
-                .eq('activo', true)
+                .eq('activo', 1)  // Use 1 instead of true - column is INTEGER type
                 .or(`visualizacion.eq."${escapedNombre}",visualizacion.ilike."*${escapedNombre}*",autorizacion.eq."${escapedNombre}",autorizacion.ilike."*${escapedNombre}*"`);
 
             if (error) {
@@ -536,15 +536,15 @@ async function query(sql, params = []) {
             let dbQuery = supabase.from('empleados').select(selectColumns);
 
             // Parse WHERE conditions - simple patterns only
-            // WHERE negociacion_colectiva = true
+            // WHERE negociacion_colectiva = true (use 1 since column is INTEGER type)
             if (sql.includes('negociacion_colectiva = true')) {
-                dbQuery = dbQuery.eq('negociacion_colectiva', true);
-                console.log('  + WHERE negociacion_colectiva = true');
+                dbQuery = dbQuery.eq('negociacion_colectiva', 1);
+                console.log('  + WHERE negociacion_colectiva = 1');
             }
-            // WHERE activo = true OR activo = 1
+            // WHERE activo = true OR activo = 1 (use 1 since column is INTEGER type)
             if (sql.includes('activo = true') || sql.includes('activo = 1')) {
-                dbQuery = dbQuery.eq('activo', true);
-                console.log('  + WHERE activo = true');
+                dbQuery = dbQuery.eq('activo', 1);
+                console.log('  + WHERE activo = 1');
             }
 
             // Parse ORDER BY
