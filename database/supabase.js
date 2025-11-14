@@ -513,7 +513,7 @@ async function query(sql, params = []) {
             const { data, error } = await supabase
                 .from('empleados')
                 .select('id, nombre, rut, cargo, visualizacion, autorizacion')
-                .eq('activo', 1)  // Use 1 instead of true - column is INTEGER type
+                .eq('activo', true)
                 .or(`visualizacion.eq."${escapedNombre}",visualizacion.ilike."*${escapedNombre}*",autorizacion.eq."${escapedNombre}",autorizacion.ilike."*${escapedNombre}*"`);
 
             if (error) {
@@ -526,25 +526,27 @@ async function query(sql, params = []) {
         }
 
         // Generic empleados queries with simple WHERE conditions
-        if (sql.includes('SELECT') && sql.includes('FROM empleados') && sql.includes('WHERE')) {
+        // ONLY handle SIMPLE queries - skip complex ones with LIKE, multiple params, etc.
+        if (sql.includes('SELECT') && sql.includes('FROM empleados') && sql.includes('WHERE') &&
+            !sql.includes('LIKE') && !sql.includes('JOIN')) {
             // Parse SELECT columns
             const selectMatch = sql.match(/SELECT\s+(.+?)\s+FROM empleados/is);
             const selectColumns = selectMatch ? selectMatch[1].trim().replace(/\s+/g, ' ') : '*';
 
-            console.log('🔍 Generic empleados query - columns:', selectColumns);
+            console.log('🔍 Generic SIMPLE empleados query - columns:', selectColumns);
 
             let dbQuery = supabase.from('empleados').select(selectColumns);
 
             // Parse WHERE conditions - simple patterns only
-            // WHERE negociacion_colectiva = true (use 1 since column is INTEGER type)
+            // WHERE negociacion_colectiva = true
             if (sql.includes('negociacion_colectiva = true')) {
-                dbQuery = dbQuery.eq('negociacion_colectiva', 1);
-                console.log('  + WHERE negociacion_colectiva = 1');
+                dbQuery = dbQuery.eq('negociacion_colectiva', true);
+                console.log('  + WHERE negociacion_colectiva = true');
             }
-            // WHERE activo = true OR activo = 1 (use 1 since column is INTEGER type)
+            // WHERE activo = true OR activo = 1
             if (sql.includes('activo = true') || sql.includes('activo = 1')) {
-                dbQuery = dbQuery.eq('activo', 1);
-                console.log('  + WHERE activo = 1');
+                dbQuery = dbQuery.eq('activo', true);
+                console.log('  + WHERE activo = true');
             }
 
             // Parse ORDER BY
@@ -558,13 +560,23 @@ async function query(sql, params = []) {
                 }
             }
 
-            // Parse LIMIT
+            // Parse LIMIT and OFFSET
             if (sql.includes('LIMIT')) {
-                const limitMatch = sql.match(/LIMIT\s+(\d+)/i);
-                if (limitMatch) {
-                    const limit = parseInt(limitMatch[1]);
-                    dbQuery = dbQuery.limit(limit);
-                    console.log('  + LIMIT', limit);
+                const limitMatch = sql.match(/LIMIT\s+\?\s+OFFSET\s+\?/i);
+                if (limitMatch && params.length >= 2) {
+                    // LIMIT ? OFFSET ? with params
+                    const limit = parseInt(params[params.length - 2]);
+                    const offset = parseInt(params[params.length - 1]);
+                    dbQuery = dbQuery.limit(limit).range(offset, offset + limit - 1);
+                    console.log(`  + LIMIT ${limit} OFFSET ${offset}`);
+                } else {
+                    // Simple LIMIT without params
+                    const limitNumMatch = sql.match(/LIMIT\s+(\d+)/i);
+                    if (limitNumMatch) {
+                        const limit = parseInt(limitNumMatch[1]);
+                        dbQuery = dbQuery.limit(limit);
+                        console.log('  + LIMIT', limit);
+                    }
                 }
             }
 
