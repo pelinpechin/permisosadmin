@@ -505,11 +505,16 @@ async function query(sql, params = []) {
             const supervisorNombre = params[0];
             console.log('🔍 Búsqueda de subordinados para supervisor:', supervisorNombre);
 
+            // PostgREST or() syntax: field.operator.value
+            // For ILIKE with wildcards, use * instead of %
+            // Escape quotes in supervisor name
+            const escapedNombre = supervisorNombre.replace(/"/g, '\\"');
+
             const { data, error } = await supabase
                 .from('empleados')
                 .select('id, nombre, rut, cargo, visualizacion, autorizacion')
                 .eq('activo', true)
-                .or(`visualizacion.eq.${supervisorNombre},visualizacion.ilike.%${supervisorNombre}%,autorizacion.eq.${supervisorNombre},autorizacion.ilike.%${supervisorNombre}%`);
+                .or(`visualizacion.eq."${escapedNombre}",visualizacion.ilike."*${escapedNombre}*",autorizacion.eq."${escapedNombre}",autorizacion.ilike."*${escapedNombre}*"`);
 
             if (error) {
                 console.error('❌ Error en búsqueda de subordinados:', error);
