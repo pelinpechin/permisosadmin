@@ -1276,26 +1276,26 @@ router.post('/aprobar-supervisor/:id', verificarTokenEmpleado, async (req, res) 
         if (esAutoridad) {
             // Autoridad máxima: aprobación final
             await run(`
-                UPDATE solicitudes_permisos 
-                SET estado = 'APROBADO', 
-                    fecha_aprobacion = CURRENT_TIMESTAMP,
+                UPDATE solicitudes_permisos
+                SET estado = 'APROBADO',
+                    fecha_aprobacion = NOW(),
                     aprobado_por = ?,
-                    updated_at = CURRENT_TIMESTAMP
+                    updated_at = NOW()
                 WHERE id = ? AND estado IN ('PENDIENTE', 'APROBADO_SUPERVISOR')
             `, [req.empleado.id, solicitudId]);
-            
+
             console.log('✅ Solicitud APROBADA FINALMENTE por autoridad');
         } else {
             // Supervisor directo: primera aprobación
             await run(`
-                UPDATE solicitudes_permisos 
+                UPDATE solicitudes_permisos
                 SET estado = 'APROBADO_SUPERVISOR',
-                    visto_por_supervisor = true,
-                    fecha_visto_supervisor = CURRENT_TIMESTAMP,
-                    updated_at = CURRENT_TIMESTAMP
+                    visto_por_supervisor = 1,
+                    fecha_visto_supervisor = NOW(),
+                    updated_at = NOW()
                 WHERE id = ? AND estado = 'PENDIENTE'
             `, [solicitudId]);
-            
+
             console.log('✅ Solicitud APROBADA por supervisor directo');
         }
         
@@ -1323,12 +1323,12 @@ router.post('/rechazar-supervisor/:id', verificarTokenEmpleado, async (req, res)
         const { motivo } = req.body;
         
         await run(`
-            UPDATE solicitudes_permisos 
+            UPDATE solicitudes_permisos
             SET estado = 'RECHAZADO',
-                fecha_aprobacion = CURRENT_TIMESTAMP,
+                fecha_aprobacion = NOW(),
                 aprobado_por = ?,
                 rechazado_motivo = ?,
-                updated_at = CURRENT_TIMESTAMP
+                updated_at = NOW()
             WHERE id = ? AND estado IN ('PENDIENTE', 'APROBADO_SUPERVISOR')
         `, [req.empleado.id, motivo || 'Sin motivo especificado', solicitudId]);
         

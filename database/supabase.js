@@ -1206,45 +1206,71 @@ async function run(sql, params = []) {
                 if (error) throw error;
                 return { changes: data.length };
             } else if (sql.includes('visto_por_supervisor') && sql.includes('fecha_visto_supervisor')) {
-                // Supervisor approval update
-                const id = params[0];
-                
+                // Supervisor direct approval update
+                const id = params[0]; // Solo solicitudId
+
                 const updateData = {
                     estado: 'APROBADO_SUPERVISOR',
                     visto_por_supervisor: true,
                     fecha_visto_supervisor: new Date().toISOString(),
                     updated_at: new Date().toISOString()
                 };
-                
+
                 const { data, error } = await supabase
                     .from('solicitudes_permisos')
                     .update(updateData)
                     .eq('id', id)
                     .eq('estado', 'PENDIENTE')
-                    .select();
-                
+                    .select('*');
+
                 if (error) throw error;
+                console.log('✅ Solicitud aprobada por supervisor directo:', data);
                 return { changes: data.length };
-            } else if (sql.includes('aprobado_por') && sql.includes('fecha_aprobacion')) {
-                // Authority final approval
+            } else if (sql.includes('aprobado_por') && sql.includes('fecha_aprobacion') && !sql.includes('rechazado_motivo')) {
+                // Authority final approval (APROBADO)
                 const supervisorId = params[0];
                 const id = params[1];
-                
+
                 const updateData = {
                     estado: 'APROBADO',
                     fecha_aprobacion: new Date().toISOString(),
                     aprobado_por: supervisorId,
                     updated_at: new Date().toISOString()
                 };
-                
+
                 const { data, error } = await supabase
                     .from('solicitudes_permisos')
                     .update(updateData)
                     .eq('id', id)
                     .in('estado', ['PENDIENTE', 'APROBADO_SUPERVISOR'])
-                    .select();
-                
+                    .select('*');
+
                 if (error) throw error;
+                console.log('✅ Solicitud aprobada finalmente por autoridad:', data);
+                return { changes: data.length };
+            } else if (sql.includes('aprobado_por') && sql.includes('rechazado_motivo')) {
+                // Rejection by supervisor
+                const supervisorId = params[0];
+                const motivo = params[1];
+                const id = params[2];
+
+                const updateData = {
+                    estado: 'RECHAZADO',
+                    fecha_aprobacion: new Date().toISOString(),
+                    aprobado_por: supervisorId,
+                    rechazado_motivo: motivo,
+                    updated_at: new Date().toISOString()
+                };
+
+                const { data, error } = await supabase
+                    .from('solicitudes_permisos')
+                    .update(updateData)
+                    .eq('id', id)
+                    .in('estado', ['PENDIENTE', 'APROBADO_SUPERVISOR'])
+                    .select('*');
+
+                if (error) throw error;
+                console.log('✅ Solicitud rechazada por supervisor:', data);
                 return { changes: data.length };
             } else if (sql.includes('fecha_anulacion') && sql.includes('rechazado_motivo')) {
                 // Anular solicitud
