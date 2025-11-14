@@ -528,8 +528,8 @@ async function query(sql, params = []) {
         // Generic empleados queries with simple WHERE conditions
         if (sql.includes('SELECT') && sql.includes('FROM empleados') && sql.includes('WHERE')) {
             // Parse SELECT columns
-            const selectMatch = sql.match(/SELECT\s+(.+?)\s+FROM empleados/i);
-            const selectColumns = selectMatch ? selectMatch[1].trim() : '*';
+            const selectMatch = sql.match(/SELECT\s+(.+?)\s+FROM empleados/is);
+            const selectColumns = selectMatch ? selectMatch[1].trim().replace(/\s+/g, ' ') : '*';
 
             console.log('🔍 Generic empleados query - columns:', selectColumns);
 
@@ -541,10 +541,21 @@ async function query(sql, params = []) {
                 dbQuery = dbQuery.eq('negociacion_colectiva', true);
                 console.log('  + WHERE negociacion_colectiva = true');
             }
-            // WHERE activo = true
-            if (sql.includes('activo = true')) {
+            // WHERE activo = true OR activo = 1
+            if (sql.includes('activo = true') || sql.includes('activo = 1')) {
                 dbQuery = dbQuery.eq('activo', true);
                 console.log('  + WHERE activo = true');
+            }
+
+            // Parse ORDER BY
+            if (sql.includes('ORDER BY')) {
+                const orderMatch = sql.match(/ORDER BY\s+(\w+)(?:\s+(ASC|DESC))?/i);
+                if (orderMatch) {
+                    const column = orderMatch[1];
+                    const direction = orderMatch[2] ? orderMatch[2].toLowerCase() === 'desc' : false;
+                    dbQuery = dbQuery.order(column, { ascending: !direction });
+                    console.log(`  + ORDER BY ${column} ${direction ? 'DESC' : 'ASC'}`);
+                }
             }
 
             // Parse LIMIT
