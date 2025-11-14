@@ -1,6 +1,6 @@
 {
   "name": "permisos-administrativos",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Sistema completo de gestión de permisos administrativos para Chile",
   "main": "server.js",
   "scripts": {
