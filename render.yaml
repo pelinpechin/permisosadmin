@@ -9,3 +9,5 @@ services:
         value: 18.17.0
       - key: NPM_CONFIG_PRODUCTION
         value: false
+      - key: FORCE_REBUILD
+        value: "true"
