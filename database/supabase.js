@@ -525,6 +525,48 @@ async function query(sql, params = []) {
             return data || [];
         }
 
+        // Generic empleados queries with simple WHERE conditions
+        if (sql.includes('SELECT') && sql.includes('FROM empleados') && sql.includes('WHERE')) {
+            // Parse SELECT columns
+            const selectMatch = sql.match(/SELECT\s+(.+?)\s+FROM empleados/i);
+            const selectColumns = selectMatch ? selectMatch[1].trim() : '*';
+
+            console.log('🔍 Generic empleados query - columns:', selectColumns);
+
+            let dbQuery = supabase.from('empleados').select(selectColumns);
+
+            // Parse WHERE conditions - simple patterns only
+            // WHERE negociacion_colectiva = true
+            if (sql.includes('negociacion_colectiva = true')) {
+                dbQuery = dbQuery.eq('negociacion_colectiva', true);
+                console.log('  + WHERE negociacion_colectiva = true');
+            }
+            // WHERE activo = true
+            if (sql.includes('activo = true')) {
+                dbQuery = dbQuery.eq('activo', true);
+                console.log('  + WHERE activo = true');
+            }
+
+            // Parse LIMIT
+            if (sql.includes('LIMIT')) {
+                const limitMatch = sql.match(/LIMIT\s+(\d+)/i);
+                if (limitMatch) {
+                    const limit = parseInt(limitMatch[1]);
+                    dbQuery = dbQuery.limit(limit);
+                    console.log('  + LIMIT', limit);
+                }
+            }
+
+            const { data, error } = await dbQuery;
+            if (error) {
+                console.error('❌ Error en generic empleados query:', error);
+                throw error;
+            }
+
+            console.log(`✅ Generic query returned ${data ? data.length : 0} results`);
+            return data || [];
+        }
+
         // Simple empleados queries (only when NO WHERE clause)
         if (sql.includes('SELECT') && sql.includes('FROM empleados') && !sql.includes('WHERE')) {
             // Query without WHERE clause - return all active employees
