@@ -1252,7 +1252,7 @@ async function run(sql, params = []) {
                 const id = params[1];
 
                 const updateData = {
-                    estado: 'CANCELADO',
+                    estado: 'ANULADO',
                     fecha_anulacion: new Date().toISOString(),
                     rechazado_motivo: motivo,
                     updated_at: new Date().toISOString()

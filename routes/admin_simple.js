@@ -292,7 +292,7 @@ router.put('/anular/:id', verificarTokenAdmin, async (req, res) => {
         // Anular la solicitud
         await run(`
             UPDATE solicitudes_permisos SET
-                estado = 'CANCELADO',
+                estado = 'ANULADO',
                 fecha_anulacion = NOW(),
                 rechazado_motivo = ?,
                 updated_at = NOW()
