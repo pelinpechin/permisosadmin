@@ -293,9 +293,9 @@ router.put('/anular/:id', verificarTokenAdmin, async (req, res) => {
         await run(`
             UPDATE solicitudes_permisos SET
                 estado = 'CANCELADO',
-                fecha_anulacion = CURRENT_TIMESTAMP,
+                fecha_anulacion = NOW(),
                 rechazado_motivo = ?,
-                updated_at = CURRENT_TIMESTAMP
+                updated_at = NOW()
             WHERE id = ?
         `, [motivo || 'Anulado por administrador', id]);
 
