@@ -659,7 +659,19 @@ async function query(sql, params = []) {
             console.log('✅ Consulta compleja exitosa:', transformedData.length, 'resultados');
             return transformedData;
         }
-        
+
+        // SELECT específico de solicitud por ID (sin joins para evitar ambigüedad de relaciones)
+        if (sql.includes('SELECT * FROM solicitudes_permisos WHERE id = ?')) {
+            const id = params[0];
+            const { data, error } = await supabase
+                .from('solicitudes_permisos')
+                .select('*')
+                .eq('id', id);
+
+            if (error) throw error;
+            return data;
+        }
+
         // Solicitudes con joins
         if (sql.includes('SELECT * FROM solicitudes_permisos')) {
             const { data, error } = await supabase
