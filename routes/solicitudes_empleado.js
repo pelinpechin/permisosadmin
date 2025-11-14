@@ -1116,14 +1116,17 @@ router.get('/subordinados', verificarTokenEmpleado, async (req, res) => {
         
         const supervisorId = req.empleado.id;
         const supervisorNombre = req.empleado.nombre || '';
-        
-        // Buscar empleados que tienen este usuario como supervisor (por ID o nombre)
+
+        // Buscar empleados que tienen este usuario como supervisor de VISUALIZACION o AUTORIZACION
         const subordinados = await query(`
-            SELECT id, nombre, rut, cargo 
-            FROM empleados 
-            WHERE (supervisor = ? OR supervisor LIKE ?) 
+            SELECT id, nombre, rut, cargo, visualizacion, autorizacion
+            FROM empleados
+            WHERE (
+                visualizacion = ? OR visualizacion LIKE ? OR
+                autorizacion = ? OR autorizacion LIKE ?
+            )
             AND activo = 1
-        `, [supervisorId, `%${supervisorNombre}%`]);
+        `, [supervisorNombre, `%${supervisorNombre}%`, supervisorNombre, `%${supervisorNombre}%`]);
         
         console.log('👥 Subordinados encontrados por BD:', subordinados ? subordinados.length : 0);
         
@@ -1381,6 +1384,73 @@ router.put('/admin/anular/:id', async (req, res) => {
 
     } catch (error) {
         console.error('💥 Error anulando solicitud:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Error interno del servidor: ' + error.message
+        });
+    }
+});
+
+/**
+ * GET /api/solicitudes-empleado/notificaciones
+ * Obtener notificaciones del empleado (supervisor)
+ */
+router.get('/notificaciones', verificarTokenEmpleado, async (req, res) => {
+    try {
+        console.log('🔔 === OBTENER NOTIFICACIONES ===');
+        console.log('🔔 Empleado:', req.empleado.nombre);
+
+        const empleadoId = req.empleado.id;
+
+        // Obtener notificaciones no leídas del empleado
+        const notificaciones = await query(`
+            SELECT * FROM notificaciones
+            WHERE empleado_id = ?
+            ORDER BY created_at DESC
+            LIMIT 50
+        `, [empleadoId]);
+
+        console.log(`📬 Se encontraron ${notificaciones ? notificaciones.length : 0} notificaciones`);
+
+        res.json({
+            success: true,
+            data: notificaciones || [],
+            noLeidas: (notificaciones || []).filter(n => !n.leida).length
+        });
+
+    } catch (error) {
+        console.error('💥 Error obteniendo notificaciones:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Error interno del servidor: ' + error.message
+        });
+    }
+});
+
+/**
+ * PUT /api/solicitudes-empleado/notificaciones/:id/marcar-leida
+ * Marcar una notificación como leída
+ */
+router.put('/notificaciones/:id/marcar-leida', verificarTokenEmpleado, async (req, res) => {
+    try {
+        const { id } = req.params;
+        const empleadoId = req.empleado.id;
+
+        console.log(`✅ Marcando notificación ${id} como leída para empleado ${empleadoId}`);
+
+        await run(`
+            UPDATE notificaciones
+            SET leida = 1
+            WHERE id = ? AND empleado_id = ?
+        `, [id, empleadoId]);
+
+        res.json({
+            success: true,
+            message: 'Notificación marcada como leída'
+        });
+
+    } catch (error) {
+        console.error('💥 Error marcando notificación:', error);
         res.status(500).json({
             success: false,
             error: 'Error interno del servidor: ' + error.message
