@@ -502,8 +502,27 @@ async function query(sql, params = []) {
         if (sql.includes('SELECT') && sql.includes('FROM empleados')) {
             let dbQuery = supabase.from('empleados').select('*');
 
-            // Si no tiene WHERE específico, agregar activo = true
-            if (!sql.includes('WHERE')) {
+            // Parse WHERE clauses
+            if (sql.includes('WHERE')) {
+                // WHERE id = ? (with placeholder)
+                if (sql.includes('WHERE id = ?') && params.length > 0) {
+                    dbQuery = dbQuery.eq('id', params[0]);
+                }
+                // WHERE id = <number> (literal value)
+                else if (sql.includes('WHERE id = ')) {
+                    const idMatch = sql.match(/WHERE id = (\d+)/);
+                    if (idMatch) {
+                        dbQuery = dbQuery.eq('id', parseInt(idMatch[1]));
+                    }
+                }
+                // WHERE nombre LIKE ?
+                else if (sql.includes('WHERE nombre LIKE ?') && params.length > 0) {
+                    const searchTerm = params[0].replace(/%/g, '');
+                    dbQuery = dbQuery.ilike('nombre', `%${searchTerm}%`);
+                }
+                // Add more WHERE patterns as needed
+            } else {
+                // Si no tiene WHERE específico, agregar activo = true
                 dbQuery = dbQuery.eq('activo', true);
             }
 
@@ -1155,31 +1174,68 @@ async function run(sql, params = []) {
         // INSERT INTO solicitudes_permisos
         if (sql.includes('INSERT INTO solicitudes_permisos')) {
             console.log('🔥 INSERT solicitudes_permisos recibido');
+            console.log('🔥 SQL:', sql);
             console.log('🔥 Parámetros:', params);
-            
-            // Nuevo formato: empleado_id, tipo_permiso_id, fecha_solicitud, fecha_desde, motivo, observaciones, estado
-            const solicitudData = {
-                empleado_id: params[0],
-                tipo_permiso_id: params[1],     // ID del tipo de permiso, no código
-                fecha_solicitud: params[2],
-                fecha_desde: params[3],         // Fecha desde es requerida
-                motivo: params[4],              
-                observaciones: params[5],
-                estado: params[6]               // 'PENDIENTE'
-            };
-            
+
+            // Parse column names from SQL (similar to empleados handler)
+            const columnsMatch = sql.match(/INSERT INTO solicitudes_permisos\s*\(([^)]+)\)/);
+            if (!columnsMatch) {
+                throw new Error('No se pudieron extraer las columnas del INSERT');
+            }
+
+            const columnNames = columnsMatch[1].split(',').map(col => col.trim());
+            console.log('🔥 Columnas detectadas:', columnNames);
+
+            // Parse VALUES clause to identify hardcoded values vs placeholders
+            const valuesMatch = sql.match(/VALUES\s*\(([^)]+)\)/);
+            if (!valuesMatch) {
+                throw new Error('No se pudo extraer la cláusula VALUES');
+            }
+
+            const valueParts = valuesMatch[1].split(',').map(v => v.trim());
+            console.log('🔥 VALUES detectados:', valueParts);
+
+            // Build object from column names and params/hardcoded values
+            const solicitudData = {};
+            let paramIndex = 0;
+
+            columnNames.forEach((col, index) => {
+                const valuePart = valueParts[index];
+
+                // Skip auto-generated fields
+                if (col === 'created_at' || col === 'updated_at') {
+                    return;
+                }
+
+                // Check if this is a placeholder (?) or hardcoded value
+                if (valuePart === '?') {
+                    // Use parameter value
+                    if (params[paramIndex] !== undefined) {
+                        solicitudData[col] = params[paramIndex];
+                    }
+                    paramIndex++;
+                } else if (valuePart.includes('NOW()')) {
+                    // Skip NOW() - will be auto-generated
+                    return;
+                } else {
+                    // It's a hardcoded value - remove quotes and use it
+                    const cleanValue = valuePart.replace(/^'|'$/g, '');
+                    solicitudData[col] = cleanValue;
+                }
+            });
+
             console.log('🔥 Datos a insertar:', solicitudData);
-            
+
             const { data, error } = await supabase
                 .from('solicitudes_permisos')
                 .insert(solicitudData)
                 .select();
-            
+
             if (error) {
                 console.error('🔥 Error en INSERT:', error);
                 throw error;
             }
-            
+
             console.log('🔥 INSERT exitoso:', data);
             return { lastID: data[0]?.id, changes: 1 };
         }
