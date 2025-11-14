@@ -1234,6 +1234,27 @@ async function run(sql, params = []) {
                 
                 if (error) throw error;
                 return { changes: data.length };
+            } else if (sql.includes('fecha_anulacion') && sql.includes('rechazado_motivo')) {
+                // Anular solicitud
+                const motivo = params[0];
+                const id = params[1];
+
+                const updateData = {
+                    estado: 'CANCELADO',
+                    fecha_anulacion: new Date().toISOString(),
+                    rechazado_motivo: motivo,
+                    updated_at: new Date().toISOString()
+                };
+
+                const { data, error } = await supabase
+                    .from('solicitudes_permisos')
+                    .update(updateData)
+                    .eq('id', id)
+                    .select();
+
+                if (error) throw error;
+                console.log('✅ Solicitud anulada exitosamente:', data);
+                return { changes: data.length };
             } else if (sql.includes('estado =')) {
                 // Simple estado update
                 const estado = params[0];
