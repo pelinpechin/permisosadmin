@@ -680,7 +680,7 @@
 
             try {
                 const response = await fetch(`/api/admin/anular/${permisoId}`, {
-                    method: 'POST',
+                    method: 'PUT',
                     headers: {
                         'Content-Type': 'application/json',
                         'Authorization': `Bearer ${token}`
