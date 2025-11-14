@@ -1125,7 +1125,7 @@ router.get('/subordinados', verificarTokenEmpleado, async (req, res) => {
                 visualizacion = ? OR visualizacion LIKE ? OR
                 autorizacion = ? OR autorizacion LIKE ?
             )
-            AND activo = 1
+            AND activo = true
         `, [supervisorNombre, `%${supervisorNombre}%`, supervisorNombre, `%${supervisorNombre}%`]);
         
         console.log('👥 Subordinados encontrados por BD:', subordinados ? subordinados.length : 0);
@@ -1152,9 +1152,9 @@ router.get('/subordinados', verificarTokenEmpleado, async (req, res) => {
                 // Buscar subordinados específicos por nombre
                 for (const nombreSubordinado of subordinadosNombres) {
                     const empleadosEncontrados = await query(`
-                        SELECT id, nombre, rut, cargo 
-                        FROM empleados 
-                        WHERE nombre LIKE ? AND activo = 1
+                        SELECT id, nombre, rut, cargo
+                        FROM empleados
+                        WHERE nombre LIKE ? AND activo = true
                     `, [`%${nombreSubordinado}%`]);
                     
                     if (empleadosEncontrados && empleadosEncontrados.length > 0) {
